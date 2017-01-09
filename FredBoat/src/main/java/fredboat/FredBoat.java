@@ -147,6 +147,9 @@ public abstract class FredBoat {
             }
         }
 
+        //Get API Port
+        APIPort = config.optInt("apiPort");
+
         JSONArray gkeys = credsjson.optJSONArray("googleServerKeys");
         if (gkeys != null) {
             log.info("Using lavaplayer nodes");
@@ -184,9 +187,6 @@ public abstract class FredBoat {
         } catch (Exception e) {
             log.info("Failed to ignite Spark, FredBoat API unavailable", e);
         }
-
-        //Get API Port
-        APIPort = config.optInt("apiPort");
 
         //Initialise JCA
         String cbUser = credsjson.optString("cbUser");
