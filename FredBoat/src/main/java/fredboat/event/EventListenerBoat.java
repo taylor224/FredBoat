@@ -95,7 +95,7 @@ public class EventListenerBoat extends AbstractScopedEventListener {
                 if(entry != null) {
                     invoked = entry.command;
                 } else {
-                    log.info("Unknown command:", cmdName);
+                    log.info("알수없는 명령어 입니다 :", cmdName);
                 }
             }
 
@@ -140,12 +140,12 @@ public class EventListenerBoat extends AbstractScopedEventListener {
     @Override
     public void onReady(ReadyEvent event) {
         super.onReady(event);
-        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] Say ;;help"));
+        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] ;;help 라고 입력해보세요"));
     }
 
     @Override
     public void onReconnect(ReconnectedEvent event) {
-        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] Say ;;help"));
+        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] ;;help 라고 입력해보세요"));
     }
 
     /* music related */
@@ -161,7 +161,7 @@ public class EventListenerBoat extends AbstractScopedEventListener {
                 && player.getUserCurrentVoiceChannel(event.getGuild().getSelfMember()) == event.getChannelLeft()
                 && !player.isPaused()) {
             player.pause();
-            player.getActiveTextChannel().sendMessage("All users have left the voice channel. The player has been paused.").queue();
+            player.getActiveTextChannel().sendMessage("모든 유저가 음성채널에서 떠났습니다. 플레이어를 일시정지 할겁니다. (삐짐)").queue();
         }
     }
 

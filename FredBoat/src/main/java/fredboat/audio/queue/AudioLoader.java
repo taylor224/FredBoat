@@ -81,7 +81,7 @@ public class AudioLoader implements AudioLoadResultHandler {
         try {
             if (!context.isQuiet()) {
                 context.textChannel.sendMessage(
-                        gplayer.isPlaying() ? "**" + at.getInfo().title + "** has been added to the queue." : "**" + at.getInfo().title + "** will now play."
+                        gplayer.isPlaying() ? "**" + at.getInfo().title + "** 가 재생 큐에 추가되었습니다." : "**" + at.getInfo().title + "** 가 재생됩니다."
                 ).queue();
             } else {
                 log.info("Quietly loaded " + at.getIdentifier());
@@ -103,7 +103,7 @@ public class AudioLoader implements AudioLoadResultHandler {
     public void playlistLoaded(AudioPlaylist ap) {
         try {
             context.textChannel.sendMessage(
-                    "Found and added `" + ap.getTracks().size() + "` songs from playlist **" + ap.getName() + "**."
+                    "총 `" + ap.getTracks().size() + "` 개의 곡이 있는 플레이리스트가 추가됩니다. **" + ap.getName() + "**."
             ).queue();
 
             for (AudioTrack at : ap.getTracks()) {
@@ -121,7 +121,7 @@ public class AudioLoader implements AudioLoadResultHandler {
     @Override
     public void noMatches() {
         try {
-            context.textChannel.sendMessage("No audio could be found for `" + context.identifier + "`.").queue();
+            context.textChannel.sendMessage("`" + context.identifier + "` 의 오디오를 찾을수 없습니다.").queue();
         } catch (Throwable th) {
             handleThrowable(context, th);
         }
@@ -142,20 +142,20 @@ public class AudioLoader implements AudioLoadResultHandler {
                 FriendlyException fe = (FriendlyException) th;
                 if (fe.severity == FriendlyException.Severity.COMMON) {
                     if (ic.textChannel != null) {
-                        context.textChannel.sendMessage("Error occurred when loading info for `" + context.identifier + "`:\n"
+                        context.textChannel.sendMessage("`" + context.identifier + "` 을 로딩하는 중에 오류가 발생하였습니다.:\n"
                         + fe.getMessage()).queue();
                     } else {
                         log.error("Error while loading track ", th);
                     }
                 } else if (ic.textChannel != null) {
-                    context.textChannel.sendMessage("Suspicious error when loading info for `" + context.identifier + "`.").queue();
+                    context.textChannel.sendMessage("`" + context.identifier + "` 의 정보를 불러오는 중에 에러가 난 것 같습니다.").queue();
                     Throwable exposed = fe.getCause() == null ? fe : fe.getCause();
                     TextUtils.handleException(exposed, context.textChannel);
                 } else {
                     log.error("Error while loading track ", th);
                 }
             } else if (ic.textChannel != null) {
-                context.textChannel.sendMessage("Suspicious error when loading info for `" + context.identifier + "`.").queue();
+                context.textChannel.sendMessage("`" + context.identifier + "` 의 정보를 불러오는 중에 에러가 난 것 같습니다.").queue();
                 TextUtils.handleException(th, context.textChannel);
             } else {
                 log.error("Error while loading track ", th);
