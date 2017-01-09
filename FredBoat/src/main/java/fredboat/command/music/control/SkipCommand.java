@@ -44,7 +44,7 @@ public class SkipCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.get(guild);
         player.setCurrentTC(channel);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("The queue is empty!").queue();
+            channel.sendMessage("재생 큐가 비어있습니다.").queue();
         }
 
         if(args.length == 1){
@@ -58,17 +58,17 @@ public class SkipCommand extends Command implements IMusicCommand {
             }
 
             if(player.getRemainingTracks().size() < givenIndex){
-                channel.sendMessage("Can't remove track number " + givenIndex + " when there are only " + player.getRemainingTracks().size() + " tracks.").queue();
+                channel.sendMessage("" + givenIndex + "번 트랙을 스킵할수 없습니다. 현재 재생 큐에 " + player.getRemainingTracks().size() + " 트랙 밖에 없습니다.").queue();
                 return;
             } else if (givenIndex < 1){
-                channel.sendMessage("Given number must be greater than 0.").queue();
+                channel.sendMessage("스킵 선택 번호는 0 보다는 커야합니다.").queue();
                 return;
             }
 
             AudioTrackContext atc = player.getAudioTrackProvider().removeAt(givenIndex - 2);
-            channel.sendMessage("Skipped track #" + givenIndex + ": **" + atc.getTrack().getInfo().title + "**").queue();
+            channel.sendMessage("트랙번호 #" + givenIndex + " 가 스킵되었습니다. \n**" + atc.getTrack().getInfo().title + "**").queue();
         } else {
-            channel.sendMessage("Incorrect number of arguments. Proper usage: ```\n;;skip\n;;skip <index>```").queue();
+            channel.sendMessage("잘못된 명령입니다.\n사용방법 : ```\n;;skip\n;;skip <트랙번호>```").queue();
         }
     }
 
@@ -77,9 +77,9 @@ public class SkipCommand extends Command implements IMusicCommand {
         AudioTrackContext atc = player.getPlayingTrack();
         player.skip();
         if(atc == null) {
-            channel.sendMessage("Couldn't find track to skip.").queue();
+            channel.sendMessage("스킵할 트랙을 찾을수 없습니다.").queue();
         } else {
-            channel.sendMessage("Skipped track #1: **" + atc.getTrack().getInfo().title + "**").queue();
+            channel.sendMessage("트랙번호 #1 가 스킵되었습니다.\n**" + atc.getTrack().getInfo().title + "**").queue();
         }
     }
 

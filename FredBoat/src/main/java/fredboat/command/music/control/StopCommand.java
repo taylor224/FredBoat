@@ -51,18 +51,18 @@ public class StopCommand extends Command implements IMusicCommand {
 
             switch (count) {
                 case 0:
-                    channel.sendMessage("The queue was already empty.").queue();
+                    channel.sendMessage("재생 큐가 이미 비어있습니다.").queue();
                     break;
                 case 1:
-                    channel.sendMessage("The queue has been emptied, `1` song has been removed.").queue();
+                    channel.sendMessage("재생 큐를 초기화 합니다. `1` 곡이 삭제되었습니다.").queue();
                     break;
                 default:
-                    channel.sendMessage("The queue has been emptied, `" + count + "` songs have been removed.").queue();
+                    channel.sendMessage("재생 큐를 초기화 합니다. `" + count + "` 곡이 삭제되었습니다.").queue();
                     break;
             }
             player.leaveVoiceChannelRequest(channel, true);
         } else {
-            channel.sendMessage("In order to prevent abuse, this command is only available to those who can manage messages.").queue();
+            channel.sendMessage("어뷰징 방지를 위해 본 기능은 메세지 관리 권한이 있는 유저만 실행이 가능합니다.").queue();
         }
     }
 

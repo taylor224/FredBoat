@@ -57,7 +57,7 @@ public class SelectCommand extends Command implements IMusicCommand {
                 } else {
                     YoutubeVideo selected = selection.choices.get(i - 1);
                     player.selections.remove(invoker.getUser().getId());
-                    String msg = "Song **#" + i + "** has been selected: **" + selected.getName() + "** (" + selected.getDurationFormatted() + ")";
+                    String msg = "곡 **#" + i + "**번 이 선택되었습니다. **" + selected.getName() + "** (" + selected.getDurationFormatted() + ")";
                     selection.getOutMsg().editMessage(msg).complete(true);
                     player.queue("https://www.youtube.com/watch?v=" + selected.getId(), channel, invoker);
                     player.setPause(false);
@@ -68,12 +68,12 @@ public class SelectCommand extends Command implements IMusicCommand {
                     }
                 }
             } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-                channel.sendMessage("Must be a number 1-" + selection.getChoices().size() + ".").queue();
+                channel.sendMessage("번호는 1-" + selection.getChoices().size() + " 사이에서 선택되어야 합니다.").queue();
             } catch (RateLimitedException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            channel.sendMessage("You must first be given a selection to choose from.").queue();
+            channel.sendMessage("You must first be given a selection to choose from. (이 문장은 번역 수정중입니다. 발견시 Taylor 에게 어떨때 나오는지 스크린샷 리포트 해주세요.").queue();
         }
     }
 

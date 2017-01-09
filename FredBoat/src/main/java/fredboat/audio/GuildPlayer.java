@@ -73,15 +73,15 @@ public class GuildPlayer extends AbstractPlayer {
 
     public void joinChannel(VoiceChannel targetChannel) throws MessagingException {
         if (targetChannel == null) {
-            throw new MessagingException("You must join a voice channel first.");
+            throw new MessagingException("현재 음성채널에 접속해 있지 않습니다. 플레이를 위해서는 먼저 음성채널에 접속해야 합니다.");
         }
 
         if (!PermissionUtil.checkPermission(targetChannel, targetChannel.getGuild().getSelfMember(), Permission.VOICE_CONNECT)) {
-            throw new MessagingException("I am not permitted to connect to that voice channel.");
+            throw new MessagingException("음성채널에 참가할수 있는 권한이 없습니다.");
         }
 
         if (!PermissionUtil.checkPermission(targetChannel, targetChannel.getGuild().getSelfMember(), Permission.VOICE_SPEAK)) {
-            throw new MessagingException("I am not permitted to play music in that voice channel.");
+            throw new MessagingException("음악 재생을 위해서는 발언권 권한이 필요합니다.");
         }
 
         AudioManager manager = getGuild().getAudioManager();
@@ -95,9 +95,9 @@ public class GuildPlayer extends AbstractPlayer {
         AudioManager manager = getGuild().getAudioManager();
         if (!silent) {
             if (manager.getConnectedChannel() == null) {
-                channel.sendMessage("Not currently in a channel.").queue();
+                channel.sendMessage("현재 음성채널에 접속해있지 않습니다.").queue();
             } else {
-                channel.sendMessage("Left channel " + getChannel().getName() + ".").queue();
+                channel.sendMessage("" + getChannel().getName() + " 채널과의 연결을 종료합니다.").queue();
             }
         }
         manager.closeAudioConnection();

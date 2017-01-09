@@ -103,14 +103,14 @@ public class PlayCommand extends Command implements IMusicCommand {
     private void handleNoArguments(Guild guild, TextChannel channel, Member invoker, Message message) {
         GuildPlayer player = PlayerRegistry.get(guild);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("The player is not currently playing anything. Use the following syntax to add a song:\n;;play <url-or-search-terms>").queue();
+            channel.sendMessage("현재 플레이어가 재생할수 있는 곡이 없습니다. 다음 명령어를 통해 곡을 추가해주세요. \n;;play <주소 혹은 검색어>").queue();
         } else if (player.isPlaying()) {
-            channel.sendMessage("The player is already playing.").queue();
+            channel.sendMessage("이미 재생 중입니다.").queue();
         } else if (player.getUsersInVC().isEmpty()) {
-            channel.sendMessage("There are no users in the voice chat.").queue();
+            channel.sendMessage("현재 음성채널에 접속해 있지 않습니다. 플레이를 위해서는 먼저 음성채널에 접속해야 합니다.").queue();
         } else {
             player.play();
-            channel.sendMessage("The player will now play.").queue();
+            channel.sendMessage("잠시후 재생이 시작됩니다.").queue();
         }
     }
 
@@ -122,19 +122,19 @@ public class PlayCommand extends Command implements IMusicCommand {
         //Now remove all punctuation
         query = query.replaceAll("[.,/#!$%\\^&*;:{}=\\-_`~()]", "");
 
-        Message outMsg = channel.sendMessage("Searching YouTube for `{q}`...".replace("{q}", query)).complete(true);
+        Message outMsg = channel.sendMessage("`{q}` 을 검색하고 있습니다...".replace("{q}", query)).complete(true);
 
         ArrayList<YoutubeVideo> vids = null;
         try {
             vids = YoutubeAPI.searchForVideos(query);
         } catch (JSONException e) {
-            channel.sendMessage("An error occurred when searching YouTube. Consider linking directly to audio sources instead.\n```\n;;play <url>```").queue();
+            channel.sendMessage("유튜브 곡 검색 중 에러가 발생하였습니다. 유튜브 주소 입력을 통해서도 곡 추가가 가능합니다.\n```\n;;play <유튜브 주소>```").queue();
             log.debug("YouTube search exception", e);
             return;
         }
 
         if (vids.isEmpty()) {
-            outMsg.editMessage("No results for `{q}`".replace("{q}", query)).queue();
+            outMsg.editMessage("`{q}` 에 대한 검색결과가 없습니다.".replace("{q}", query)).queue();
         } else {
             //Clean up any last search by this user
             GuildPlayer player = PlayerRegistry.get(guild);
@@ -145,7 +145,7 @@ public class PlayCommand extends Command implements IMusicCommand {
             }
 
             MessageBuilder builder = new MessageBuilder();
-            builder.append("**Please select a video with the `;;play n` command:**");
+            builder.append("**`;;play 숫자` 명령어를 통해 곡을 선택해주세요**");
 
             int i = 1;
             for (YoutubeVideo vid : vids) {

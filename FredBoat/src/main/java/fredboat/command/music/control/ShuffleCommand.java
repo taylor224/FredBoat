@@ -42,9 +42,9 @@ public class ShuffleCommand extends Command implements IMusicCommand {
         player.setShuffle(!player.isShuffle());
 
         if (player.isShuffle()) {
-            channel.sendMessage("The player is now shuffled.").queue();
+            channel.sendMessage("셔플(랜덤) 기능이 동작되었습니다.").queue();
         } else {
-            channel.sendMessage("The player is no longer shuffled.").queue();
+            channel.sendMessage("셔플(랜덤) 기능이 해제되었습니다.").queue();
         }
     }
 

@@ -42,9 +42,9 @@ public class RepeatCommand extends Command implements IMusicCommand {
         player.setRepeat(!player.isRepeat());
 
         if (player.isRepeat()) {
-            channel.sendMessage("The player is now on repeat.").queue();
+            channel.sendMessage("반복재생이 활성화 되었습니다.").queue();
         } else {
-            channel.sendMessage("The player is no longer on repeat.").queue();
+            channel.sendMessage("반복재생이 해제 되었습니다.").queue();
         }
     }
 

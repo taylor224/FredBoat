@@ -51,11 +51,11 @@ public class VolumeCommand extends Command implements IMusicCommand {
                 float volume = Float.parseFloat(args[1]) / 100;
                 volume = Math.max(0, Math.min(1.5f, volume));
 
-                channel.sendMessage("Changed volume from **" + (int) Math.floor(player.getVolume() * 100) + "%** to **" + (int) Math.floor(volume * 100) + "%**.").queue();
+                channel.sendMessage("볼륨을 조절합니다 [**" + (int) Math.floor(player.getVolume() * 100) + "%**] :arrow_right: [**" + (int) Math.floor(volume * 100) + "%**].").queue();
 
                 player.setVolume(volume);
             } catch (NumberFormatException | ArrayIndexOutOfBoundsException ex) {
-                throw new MessagingException("Use `;;volume <0-150>`. " + (int) (100 * PlayerRegistry.DEFAULT_VOLUME) + "% is the default.\nThe player is currently at **" + (int) Math.floor(player.getVolume() * 100) + "%**.");
+                throw new MessagingException("잘못된 명령입니다.\n사용방법 : `;;volume <0-150>`.\n기본 볼륨은 " + (int) (100 * PlayerRegistry.DEFAULT_VOLUME) + "% 입니다.\n현재 볼륨 : **" + (int) Math.floor(player.getVolume() * 100) + "%**.");
             }
         } else {
             channel.sendMessage("Sorry! The ;;volume command has now been deprecated on the public music bot. "

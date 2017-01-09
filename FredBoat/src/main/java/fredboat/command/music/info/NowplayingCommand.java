@@ -76,7 +76,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
             }
 
         } else {
-            channel.sendMessage("Not currently playing anything.").queue();
+            channel.sendMessage("현재 재생중인 트랙이 없습니다.").queue();
         }
     }
 
@@ -98,10 +98,10 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         EmbedBuilder eb = new EmbedBuilder()
                 .setTitle(at.getInfo().title)
                 .setUrl("https://www.youtube.com/watch?v=" + at.getIdentifier())
-                .addField("Time", timeField, true);
+                .addField("재생시간", timeField, true);
 
         if(desc != null && !desc.equals("")) {
-                eb.addField("Description", desc, false);
+                eb.addField("설명", desc, false);
         }
 
         MessageEmbed embed = eb.setColor(new Color(205, 32, 31))
@@ -120,7 +120,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
                         + TextUtils.formatTime(at.getPosition())
                         + "/"
                         + TextUtils.formatTime(at.getDuration())
-                        + "]\n\nLoaded from Soundcloud") //TODO: Gather description, thumbnail, etc
+                        + "]\n\nSoundCloud") //TODO: Gather description, thumbnail, etc
                 .setColor(new Color(255, 85, 0))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -140,7 +140,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
                 .setTitle(at.getInfo().title)
-                .setDescription(desc + "\n\nLoaded from Bandcamp")
+                .setDescription(desc + "\n\nBandcamp")
                 .setColor(new Color(99, 154, 169))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -152,7 +152,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, at.getIdentifier(), null) //TODO: Add thumb
                 .setTitle(at.getInfo().title)
-                .setDescription("Loaded from Twitch")
+                .setDescription("Twitch")
                 .setColor(new Color(100, 65, 164))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -213,7 +213,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
                 .setAuthor(at.getInfo().author, null, null)
                 .setTitle(at.getInfo().title)
                 .setUrl(at.getIdentifier())
-                .setDescription(desc + "\n\nLoaded from " + at.getIdentifier()) //TODO: Probe data
+                .setDescription(desc + "\n\n재생링크 " + at.getIdentifier()) //TODO: Probe data
                 .setColor(BotConstants.FREDBOAT_COLOR)
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -233,7 +233,7 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
                 .setTitle(at.getInfo().title)
-                .setDescription(desc + "\n\nLoaded from " + at.getSourceManager().getSourceName())
+                .setDescription(desc + "\n\n재생링크 " + at.getSourceManager().getSourceName())
                 .setColor(BotConstants.FREDBOAT_COLOR)
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();

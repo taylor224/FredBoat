@@ -60,22 +60,22 @@ public class ListCommand extends Command implements IMusicCommand {
             int i = 0;
 
             if(player.isShuffle()){
-                mb.append("Showing shuffled playlist.\n\n");
+                mb.append("셔플(랜덤) 기능이 적용된 재생 큐 입니다.\n\n");
             }
 
             for (AudioTrackContext atc : player.getRemainingTracksOrdered()) {
                 if (i == 0) {
-                    String status = player.isPlaying() ? " \\▶" : " \\\u23F8"; //Escaped play and pause emojis
+                    String status = player.isPlaying() ? " :arrow_forward: " : " :pause_button: "; //Escaped play and pause emojis
                     mb.append("[" +
                             forceNDigits(i + 1, numberLength)
-                            + "]", MessageBuilder.Formatting.BLOCK)
+                            + "]", MessageBuilder.Formatting.BOLD)
                             .append(status)
                             .append(atc.getTrack().getInfo().title)
                             .append("\n");
                 } else {
                     mb.append("[" +
                             forceNDigits(i + 1, numberLength)
-                            + "]", MessageBuilder.Formatting.BLOCK)
+                            + "]", MessageBuilder.Formatting.BOLD)
                             .append(" " + atc.getTrack().getInfo().title)
                             .append("\n");
                     if (i == 10) {
@@ -96,13 +96,13 @@ public class ListCommand extends Command implements IMusicCommand {
 
             if (tracks == 0) {
                 //We are only listening to streams
-                desc = "There " + (streams == 1 ? "is" : "are") + " **" + streams +
-                        "** live " + (streams == 1 ? "stream" : "streams") + " in the queue.";
+                desc = "총 **" + streams +
+                        "** 개의 라이브가 재생 큐에 있습니다.";
             } else {
 
-                desc = "There " + (tracks == 1 ? "is" : "are") + " **" + tracks
-                        + "** " + (tracks == 1 ? "track" : "tracks") + " with a remaining length of **[" + timestamp + "]**"
-                        + (streams == 0 ? "" : ", as well as **" + streams + "** live " + (streams == 1 ? "stream" : "streams")) + " in the queue.";
+                desc = "총 **" + tracks
+                        + "** 개, 총 시간 **[" + timestamp + "]** 의 트랙이"
+                        + (streams == 0 ? "" : ", **" + streams + "** 개의 라이브가") + " 재생 큐에 있습니다.";
 
             }
             
@@ -110,7 +110,7 @@ public class ListCommand extends Command implements IMusicCommand {
 
             channel.sendMessage(mb.build()).queue();
         } else {
-            channel.sendMessage("Not currently playing anything.").queue();
+            channel.sendMessage("재생 큐가 비어있습니다.").queue();
         }
     }
 
