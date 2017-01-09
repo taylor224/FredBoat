@@ -81,6 +81,7 @@ public abstract class FredBoat {
     private static int scopes = 0;
     public static int numShards = 1;
     private static AtomicInteger numShardsReady = new AtomicInteger(0);
+    public static int APIPort = 1356;
 
     /* Credentials */
     private static JSONObject credsjson;
@@ -183,6 +184,9 @@ public abstract class FredBoat {
         } catch (Exception e) {
             log.info("Failed to ignite Spark, FredBoat API unavailable", e);
         }
+
+        //Get API Port
+        APIPort = config.optInt("apiPort");
 
         //Initialise JCA
         String cbUser = credsjson.optString("cbUser");
