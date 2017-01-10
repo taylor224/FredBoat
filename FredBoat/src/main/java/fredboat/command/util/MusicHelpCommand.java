@@ -50,7 +50,7 @@ public class MusicHelpCommand extends TextCommand {
             ";;join\n" +
             "#현재 접속된 음성채널로 봇을 초대합니다.\n" +
             ";;leave\n" +
-            "#봇을 쫒아냅니다.\n" +
+            "#현재 음성채널에서 봇을 내보냅니다.\n" +
             ";;repeat\n" +
             "#현재 재생 곡을 반복재생 합니다.\n" +
             ";;shuffle\n" +
