@@ -45,7 +45,7 @@ public class ExitCommand extends Command implements ICommandOwnerRestricted {
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
         if (invoker.getUser().getId().equals(BotConstants.OWNER_ID)) {
-            channel.sendMessage(TextUtils.prefaceWithName(invoker, " goodbye!!")).queue();
+            channel.sendMessage(TextUtils.prefaceWithName(invoker, " 안녕 잘있어")).queue();
             FredBoat.shutdown(ExitCodes.EXIT_CODE_NORMAL);
         } else {
             channel.sendMessage(TextUtils.prefaceWithName(invoker, " you are not allowed to use that command!")).queue();
