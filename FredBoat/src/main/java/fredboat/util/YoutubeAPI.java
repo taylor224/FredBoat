@@ -41,7 +41,7 @@ public class YoutubeAPI {
     public static ArrayList<YoutubeVideo> searchForVideos(String query) {
         JSONObject data = null;
         try {
-            data = Unirest.get("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=5&regionCode=US&fields=items(id/videoId)")
+            data = Unirest.get("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=5&regionCode=JP&fields=items(id/videoId)")
                     .queryString("q", URLEncoder.encode(query, "UTF-8"))
                     .queryString("key", FredBoat.getRandomGoogleKey())
                     .asJson()
