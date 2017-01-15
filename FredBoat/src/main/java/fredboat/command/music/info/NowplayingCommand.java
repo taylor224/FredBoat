@@ -35,6 +35,7 @@ import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
+import fredboat.audio.source.bgmstore.BgmstoreAudioTrack;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
 import fredboat.util.BotConstants;
@@ -71,7 +72,10 @@ public class NowplayingCommand extends Command implements IMusicCommand {
                 sendBandcampResponse(channel, (BandcampAudioTrack) at);
             } else if (at instanceof TwitchStreamAudioTrack) {
                 sendTwitchEmbed(channel, (TwitchStreamAudioTrack) at);
-            } else {
+            } else if (at instanceof BgmstoreAudioTrack) {
+                sendBgmstoreEmbed(channel, (BgmstoreAudioTrack) at);
+            }
+            else {
                 sendDefaultEmbed(channel, at);
             }
 
@@ -198,6 +202,22 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         } catch (UnirestException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void sendBgmstoreEmbed(TextChannel channel, BgmstoreAudioTrack at) {
+        MessageEmbed embed = new EmbedBuilder()
+                .setAuthor(at.getInfo().author, null, null)
+                .setTitle(at.getInfo().title)
+                .setDescription("["
+                        + TextUtils.formatTime(at.getPosition())
+                        + "/"
+                        + TextUtils.formatTime(at.getDuration())
+                        + "]\n\nhttps://bgmstore.net/view/" + at.getIdentifier())
+                .setColor(new Color(73, 165, 255))
+                .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
+                .build();
+
+        channel.sendMessage(embed).queue();
     }
 
     private void sendHttpEmbed(TextChannel channel, HttpAudioTrack at){

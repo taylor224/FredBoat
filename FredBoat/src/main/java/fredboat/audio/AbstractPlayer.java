@@ -43,6 +43,7 @@ import fredboat.FredBoat;
 import fredboat.audio.queue.AudioTrackContext;
 import fredboat.audio.queue.ITrackProvider;
 import fredboat.audio.source.PlaylistImportSourceManager;
+import fredboat.audio.source.bgmstore.BgmstoreAudioSourceManager;
 import fredboat.util.DistributionEnum;
 import net.dv8tion.jda.core.audio.AudioSendHandler;
 import org.slf4j.LoggerFactory;
@@ -91,8 +92,9 @@ public abstract class AbstractPlayer extends AudioEventAdapter implements AudioS
         mng.registerSourceManager(new PlaylistImportSourceManager());
         mng.registerSourceManager(new TwitchStreamAudioSourceManager());
         mng.registerSourceManager(new VimeoAudioSourceManager());
+        mng.registerSourceManager(new BgmstoreAudioSourceManager());
         mng.registerSourceManager(new HttpAudioSourceManager());
-        
+
         return mng;
     }
 
