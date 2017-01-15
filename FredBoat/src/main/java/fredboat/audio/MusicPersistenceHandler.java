@@ -67,11 +67,11 @@ public class MusicPersistenceHandler {
         String msg;
 
         if (isUpdate) {
-            msg = "FredBoat♪♪ is updating. This should only take a minute and will reload the current playlist.";
+            msg = "아카리가 업데이트 중입니다. 몇 분 정도 소요 될 수 있으며, 업데이트가 끝난 뒤 기존 재생 큐가 자동으로 재로딩 됩니다.";
         } else if (isRestart) {
-            msg = "FredBoat♪♪ is restarting. This should only take a minute and will reload the current playlist.";
+            msg = "아카리가 재시작 중입니다. 몇 분 정도 소요 될 수 있으며, 업데이트가 끝난 뒤 기존 재생 큐가 자동으로 재로딩 됩니다.";
         } else {
-            msg = "FredBoat♪♪ is shutting down. Once the bot comes back the current playlist will reload.";
+            msg = "아카리가 시스템 종료 중입니다. 나중에 재시작 된 이후 기존 재생 큐가 자동으로 재로딩 됩니다.";
         }
 
         for (String gId : reg.keySet()) {
