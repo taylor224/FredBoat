@@ -48,7 +48,7 @@ public class ShardsCommand extends Command {
                     .append(" ")
                     .append(fb.getJda().getStatus())
                     .append(" -- Guilds: ")
-                    .append(fb.getJda().getGuilds().size())
+                    .append(String.format("%04d",fb.getJda().getGuilds().size()))
                     .append(" -- Users: ")
                     .append(fb.getJda().getUsers().size())
                     .append("\n");

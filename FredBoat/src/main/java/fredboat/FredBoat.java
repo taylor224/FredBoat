@@ -400,7 +400,7 @@ public abstract class FredBoat {
         }
 
         public String getShardString() {
-            return "[" + this.shardId + " / " + this.shardTotal + "]";
+            return String.format("[%02d / %02d]", this.shardId, this.shardTotal);
         }
 
     }
