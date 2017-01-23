@@ -37,7 +37,13 @@ import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class SkipCommand extends Command implements IMusicCommand {
+    private static final String TRACK_RANGE_REGEX = "^(0?\\d+)-(0?\\d+)$";
+    private static final Pattern trackRangePattern = Pattern.compile(TRACK_RANGE_REGEX);
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
@@ -67,8 +73,35 @@ public class SkipCommand extends Command implements IMusicCommand {
 
             AudioTrackContext atc = player.getAudioTrackProvider().removeAt(givenIndex - 2);
             channel.sendMessage("트랙번호 #" + givenIndex + " 가 스킵되었습니다. \n**" + atc.getTrack().getInfo().title + "**").queue();
+        } else if (args.length == 2 && trackRangePattern.matcher(args[1]).matches()){
+            Matcher trackMatch = trackRangePattern.matcher(args[1]);
+            trackMatch.matches();
+
+            Integer startTrackIndex = Integer.parseInt(trackMatch.group(1));
+            Integer endTrackIndex = Integer.parseInt(trackMatch.group(2));
+
+            if (startTrackIndex < 1) {
+                channel.sendMessage("스킵 선택 번호는 0 보다는 커야합니다.").queue();
+                return;
+            } else if (endTrackIndex <= startTrackIndex) {
+                channel.sendMessage("스킵할 트랙 번호 범위를 정확히 지정해주세요.").queue();
+                return;
+            } else if (player.getRemainingTracks().size() < endTrackIndex) {
+                channel.sendMessage("스킵할 트랙 번호 범위가 전체 트랙 리스트 숫자보다 클 수 없습니다.").queue();
+                return;
+            }
+
+            if (startTrackIndex == 1) {
+                List<AudioTrackContext> atc = player.getAudioTrackProvider().removeRange(startTrackIndex - 1, endTrackIndex - 2);
+                player.stop();
+                player.play();
+            } else {
+                List<AudioTrackContext> atc = player.getAudioTrackProvider().removeRange(startTrackIndex - 2, endTrackIndex - 2);
+            }
+
+            channel.sendMessage("트랙번호 #" + startTrackIndex + " ~ #" + endTrackIndex + " 가 스킵되었습니다.").queue();
         } else {
-            channel.sendMessage("잘못된 명령입니다.\n사용방법 : ```\n;;skip\n;;skip <트랙번호>```").queue();
+            channel.sendMessage("잘못된 명령입니다.\n사용방법 : ```\n;;skip\n;;skip <트랙번호>\n;;skip <트랙범위> 사용 예: ;;skip 10-23```").queue();
         }
     }
 
