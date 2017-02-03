@@ -64,7 +64,7 @@ public class SkipCommand extends Command implements IMusicCommand {
             }
 
             if(player.getRemainingTracks().size() < givenIndex){
-                channel.sendMessage("" + givenIndex + "번 트랙을 스킵할수 없습니다. 현재 재생 큐에 " + player.getRemainingTracks().size() + " 트랙 밖에 없습니다.").queue();
+                channel.sendMessage("" + givenIndex + "번 트랙을 스킵할수 없습니다. 현재 재생 큐에 " + player.getRemainingTracks().size() + " 개의 트랙 밖에 없습니다.").queue();
                 return;
             } else if (givenIndex < 1){
                 channel.sendMessage("스킵 선택 번호는 0 보다는 커야합니다.").queue();

@@ -73,7 +73,7 @@ public class SelectCommand extends Command implements IMusicCommand {
                 throw new RuntimeException(e);
             }
         } else {
-            channel.sendMessage("You must first be given a selection to choose from. (이 문장은 번역 수정중입니다. 발견시 Taylor 에게 어떨때 나오는지 스크린샷 리포트 해주세요.").queue();
+            channel.sendMessage("본 명령을 사용하기 위해서는 먼저 play 명령을 통해 유튜브 검색을 하셔야 합니다.").queue();
         }
     }
 
