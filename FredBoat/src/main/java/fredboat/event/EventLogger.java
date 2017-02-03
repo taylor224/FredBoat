@@ -34,8 +34,12 @@ import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EventLogger extends ListenerAdapter {
+
+    public static final Logger log = LoggerFactory.getLogger(EventLogger.class);
 
     public final String logChannelId;
     public JDA jda;
@@ -50,11 +54,12 @@ public class EventLogger extends ListenerAdapter {
     }
 
     private void send(String msg) {
-        DiscordUtil.sendShardlessMessage(jda, logChannelId,
+        /*DiscordUtil.sendShardlessMessage(jda, logChannelId,
                 FredBoat.getInstance(jda).getShardInfo().getShardString()
                 + " "
                 + msg
-        );
+        );*/
+        log.info(msg);
     }
 
     @Override
