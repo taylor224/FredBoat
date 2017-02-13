@@ -41,9 +41,17 @@ import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Dictionary;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,31 +74,43 @@ public class PlayCommand extends Command implements IMusicCommand {
             return;
         }
 
-        if (args.length < 2) {
-            handleNoArguments(guild, channel, invoker, message);
-            return;
+        String radioChannel = null;
+        Map<String, String> radioUrl = new HashMap<>();
+
+
+        try {
+            FileInputStream is = new FileInputStream(new File("config.json"));
+            Scanner scanner = new Scanner(is);
+            JSONObject config = new JSONObject(scanner.useDelimiter("\\A").next());
+            scanner.close();
+
+            radioChannel = config.optString("radio");
+
+            radioUrl.put("nhk_r1", config.optString("nhk_r1"));
+            radioUrl.put("nhk_r2", config.optString("nhk_r2"));
+            radioUrl.put("nhk_r3", config.optString("nhk_r3"));
+            radioUrl.put("mbc_fm4u", config.optString("mbc_fm4u"));
+            radioUrl.put("mbc_fm", config.optString("mbc_fm"));
+        }
+        catch (FileNotFoundException e) {
+            throw new RuntimeException("Config file not found", e);
         }
 
-        //What if we want to select a selection instead?
-        if (args.length == 2 && StringUtils.isNumeric(args[1])){
-            SelectCommand.select(guild, channel, invoker, message, args);
-            return;
-        }
+        String streamUrl = "";
 
-        //Search youtube for videos and let the user select a video
-        if (!args[1].startsWith("http")) {
-            try {
-                searchForVideos(guild, channel, invoker, message, args);
-            } catch (RateLimitedException e) {
-                throw new RuntimeException(e);
-            }
-            return;
+        switch (radioChannel) {
+            case "nhk_r1"     :   streamUrl = radioUrl.get("nhk_r1"); break;
+            case "nhk_r2"     :   streamUrl = radioUrl.get("nhk_r2"); break;
+            case "nhk_r3"     :   streamUrl = radioUrl.get("nhk_r3"); break;
+            case "mbc_fm4u"   :   streamUrl = radioUrl.get("mbc_fm4u"); break;
+            case "mbc_fm"     :   streamUrl = radioUrl.get("mbc_fm"); break;
+            default           :   streamUrl = radioUrl.get("nhk_r1"); break;
         }
 
         GuildPlayer player = PlayerRegistry.get(guild);
         player.setCurrentTC(channel);
 
-        player.queue(args[1], channel, invoker);
+        player.queue(streamUrl, channel, invoker);
         player.setPause(false);
 
         try {
@@ -111,59 +131,6 @@ public class PlayCommand extends Command implements IMusicCommand {
         } else {
             player.play();
             channel.sendMessage("잠시후 재생이 시작됩니다.").queue();
-        }
-    }
-
-    private void searchForVideos(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) throws RateLimitedException {
-        Matcher m = Pattern.compile("\\S+\\s+(.*)").matcher(message.getRawContent());
-        m.find();
-        String query = m.group(1);
-        
-        //Now remove all punctuation
-        query = query.replaceAll("[.,/#!$%\\^&*;:{}=\\-_`~()]", "");
-
-        Message outMsg = channel.sendMessage("`{q}` 을 검색하고 있습니다...".replace("{q}", query)).complete(true);
-
-        ArrayList<YoutubeVideo> vids = null;
-        try {
-            vids = YoutubeAPI.searchForVideos(query);
-        } catch (JSONException e) {
-            channel.sendMessage("유튜브 곡 검색 중 에러가 발생하였습니다. 유튜브 주소 입력을 통해서도 곡 추가가 가능합니다.\n```\n;;play <유튜브 주소>```").queue();
-            log.debug("YouTube search exception", e);
-            return;
-        }
-
-        if (vids.isEmpty()) {
-            outMsg.editMessage("`{q}` 에 대한 검색결과가 없습니다.".replace("{q}", query)).queue();
-        } else {
-            //Clean up any last search by this user
-            GuildPlayer player = PlayerRegistry.get(guild);
-
-            VideoSelection oldSelection = player.selections.get(invoker.getUser().getId());
-            if(oldSelection != null) {
-                oldSelection.getOutMsg().deleteMessage().queue();
-            }
-
-            MessageBuilder builder = new MessageBuilder();
-            builder.append("**`;;play 숫자` 명령어를 통해 곡을 선택해주세요**");
-
-            int i = 1;
-            for (YoutubeVideo vid : vids) {
-                builder.append("\n**")
-                        .append(String.valueOf(i))
-                        .append(":** ")
-                        .append(vid.getName())
-                        .append(" (")
-                        .append(vid.getDurationFormatted())
-                        .append(")");
-                i++;
-            }
-
-            outMsg.editMessage(builder.build().getRawContent()).queue();
-
-            player.setCurrentTC(channel);
-
-            player.selections.put(invoker.getUser().getId(), new VideoSelection(vids, outMsg));
         }
     }
 

@@ -38,6 +38,7 @@ import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.ReconnectedEvent;
 import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.core.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
@@ -164,6 +165,23 @@ public class EventListenerBoat extends AbstractScopedEventListener {
             player.getActiveTextChannel().sendMessage("모든 유저가 음성채널에서 떠났습니다. 플레이어를 일시정지 할겁니다. (삐짐)").queue();
         }
     }
+
+    @Override
+    public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
+        GuildPlayer player = PlayerRegistry.getExisting(event.getGuild());
+
+        if (player == null) {
+            return;
+        }
+
+        if (!player.getUsersInVC().isEmpty()
+                && player.getUserCurrentVoiceChannel(event.getGuild().getSelfMember()) == event.getChannelJoined()
+                && player.isPaused()) {
+            player.setPause(false);
+            player.getActiveTextChannel().sendMessage("유저가 들어왔다 메우 일한다 메우! (활짝)").queue();
+        }
+    }
+
 
     @Override
     public void onGuildLeave(GuildLeaveEvent event) {
