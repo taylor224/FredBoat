@@ -99,12 +99,18 @@ public class PlayCommand extends Command implements IMusicCommand {
         String streamUrl = "";
 
         switch (radioChannel) {
-            case "nhk_r1"     :   streamUrl = radioUrl.get("nhk_r1"); break;
-            case "nhk_r2"     :   streamUrl = radioUrl.get("nhk_r2"); break;
-            case "nhk_r3"     :   streamUrl = radioUrl.get("nhk_r3"); break;
-            case "mbc_fm4u"   :   streamUrl = radioUrl.get("mbc_fm4u"); break;
-            case "mbc_fm"     :   streamUrl = radioUrl.get("mbc_fm"); break;
-            default           :   streamUrl = radioUrl.get("nhk_r1"); break;
+            case "nhk_r1"     :     streamUrl = radioUrl.get("nhk_r1");
+                                    break;
+            case "nhk_r2"     :     streamUrl = radioUrl.get("nhk_r2");
+                                    break;
+            case "nhk_r3"     :     streamUrl = radioUrl.get("nhk_r3");
+                                    break;
+            case "mbc_fm4u"   :     streamUrl = radioUrl.get("mbc_fm4u");
+                                    break;
+            case "mbc_fm"     :     streamUrl = radioUrl.get("mbc_fm");
+                                    break;
+            default           :     streamUrl = radioUrl.get("nhk_r1");
+                                    break;
         }
 
         GuildPlayer player = PlayerRegistry.get(guild);
