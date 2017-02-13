@@ -1,11 +1,5 @@
 language: java
 
-deploy:
-  provider: bintray
-  file: bintray.json
-  user: frederikam
-  key: $BINTRAY_TOKEN
-
 addons:
   srcclr: true
 
