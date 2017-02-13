@@ -109,6 +109,8 @@ public class PlayCommand extends Command implements IMusicCommand {
                                     break;
             case "mbc_fm"     :     streamUrl = radioUrl.get("mbc_fm");
                                     break;
+            case "listen_moe" :     streamUrl = radioUrl.get("listen_moe");
+                                    break;
             default           :     streamUrl = radioUrl.get("nhk_r1");
                                     break;
         }
