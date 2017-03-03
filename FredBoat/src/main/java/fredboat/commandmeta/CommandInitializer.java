@@ -126,6 +126,8 @@ public class CommandInitializer {
         CommandRegistry.registerCommand(0x010, "rewind", new RewindCommand());
         CommandRegistry.registerAlias("rewind", "rew");
 
+        CommandRegistry.registerCommand(0x010, "cena", new CenaCommand());
+
         /* Other Anime Discord, Sergi memes or any other memes */
         CommandRegistry.registerCommand(0x101, "ram", new RemoteFileCommand("http://i.imgur.com/jeGVLk3.jpg"));
         CommandRegistry.registerCommand(0x101, "welcome", new RemoteFileCommand("http://i.imgur.com/yjpmmBk.gif"));
