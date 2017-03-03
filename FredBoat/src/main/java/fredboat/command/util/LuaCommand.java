@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,49 +25,17 @@
 
 package fredboat.command.util;
 
+import fredboat.commandmeta.MessagingException;
 import fredboat.commandmeta.abs.Command;
-import fredboat.lua.LuaParser;
-import fredboat.lua.LuaParser.Outcome;
-import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 
-import java.util.HashMap;
-import java.util.concurrent.ExecutionException;
-
 public class LuaCommand extends Command {
-
-    public static final int MAX_COMPUTATION_TIME = 5;
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
-        try {
-            String source = message.getContent().replaceFirst(args[0], "");
-            HashMap<String, String> luaArgs = new HashMap<>();
-            luaArgs.put("guildId", guild.getId());
-            Outcome outcome = LuaParser.parseLua(source, MAX_COMPUTATION_TIME * 1000, luaArgs);
-            String finalOutMsg = outcome.output;
-
-            if (outcome.timedOut) {
-                TextUtils.replyWithName(channel, invoker, " Function timed out :anger: allowed computation time is " + MAX_COMPUTATION_TIME + " seconds.");
-            } else if (!finalOutMsg.equals("")) {
-                if (finalOutMsg.length() > 2000) {
-                    TextUtils.replyWithName(channel, invoker, " Output buffer is too large :anger: Discord only allows 2000 characters per message, got " + finalOutMsg.length());
-                } else {
-                    TextUtils.replyWithName(channel, invoker, " " + finalOutMsg);
-                }
-            }
-
-            if (outcome.luaError != null) {
-                TextUtils.replyWithName(channel, invoker, " A Lua error occured :anger:\n```" + outcome.luaError + "```");
-            }
-
-        } catch (InterruptedException ex) {
-
-        } catch (ExecutionException ex) {
-
-        }
+        throw new MessagingException("The ;;lua command is permanently disabled and will be removed at a later date.");
     }
 }

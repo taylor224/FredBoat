@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,18 +25,22 @@
 
 package fredboat.command.music.control;
 
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import fredboat.Config;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.audio.queue.AudioTrackContext;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
+import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,7 +54,7 @@ public class SkipCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.get(guild);
         player.setCurrentTC(channel);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("재생 큐가 비어있습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("skipEmpty")).queue();
         }
 
         if(args.length == 1){
@@ -64,55 +68,64 @@ public class SkipCommand extends Command implements IMusicCommand {
             }
 
             if(player.getRemainingTracks().size() < givenIndex){
-                channel.sendMessage("" + givenIndex + "번 트랙을 스킵할수 없습니다. 현재 재생 큐에 " + player.getRemainingTracks().size() + " 개의 트랙 밖에 없습니다.").queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("skipOutOfBounds"), givenIndex, player.getRemainingTracks().size())).queue();
                 return;
             } else if (givenIndex < 1){
-                channel.sendMessage("스킵 선택 번호는 0 보다는 커야합니다.").queue();
+                channel.sendMessage(I18n.get(guild).getString("skipNumberTooLow")).queue();
                 return;
             }
 
-            AudioTrackContext atc = player.getAudioTrackProvider().removeAt(givenIndex - 2);
-            channel.sendMessage("트랙번호 #" + givenIndex + " 가 스킵되었습니다. \n**" + atc.getTrack().getInfo().title + "**").queue();
+            AudioTrackContext atc = player.getAudioTrackProvider().getAsListOrdered().get(givenIndex - 2);
+            player.skipTracksForMemberPerms(channel, invoker, atc);
+
+            Pair<Boolean, String> result = player.skipTracksForMemberPerms(channel, invoker, atc);
+            if(result.getLeft()) {
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("skipSuccess"), givenIndex, atc.getEffectiveTitle())).queue();
+            }
         } else if (args.length == 2 && trackRangePattern.matcher(args[1]).matches()){
             Matcher trackMatch = trackRangePattern.matcher(args[1]);
-            trackMatch.matches();
 
-            Integer startTrackIndex = Integer.parseInt(trackMatch.group(1));
-            Integer endTrackIndex = Integer.parseInt(trackMatch.group(2));
+            int startTrackIndex = Integer.parseInt(trackMatch.group(1));
+            int endTrackIndex = Integer.parseInt(trackMatch.group(2));
 
             if (startTrackIndex < 1) {
-                channel.sendMessage("스킵 선택 번호는 0 보다는 커야합니다.").queue();
+                channel.sendMessage(I18n.get(guild).getString("skipNumberTooLow")).queue();
                 return;
             } else if (endTrackIndex <= startTrackIndex) {
-                channel.sendMessage("스킵할 트랙 번호 범위를 정확히 지정해주세요.").queue();
+                channel.sendMessage(I18n.get(guild).getString("skipRangeInvalid")).queue();
                 return;
             } else if (player.getRemainingTracks().size() < endTrackIndex) {
-                channel.sendMessage("스킵할 트랙 번호 범위가 전체 트랙 리스트 숫자보다 클 수 없습니다.").queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("skipOutOfBounds"), endTrackIndex, player.getRemainingTracks().size())).queue();
                 return;
             }
 
+            List<AudioTrackContext> tracks = new ArrayList<>();
             if (startTrackIndex == 1) {
-                List<AudioTrackContext> atc = player.getAudioTrackProvider().removeRange(startTrackIndex - 1, endTrackIndex - 2);
-                player.stop();
-                player.play();
-            } else {
-                List<AudioTrackContext> atc = player.getAudioTrackProvider().removeRange(startTrackIndex - 2, endTrackIndex - 2);
+                //Add the currently playing track
+                tracks.add(player.getPlayingTrack());
             }
+            tracks.addAll(player.getAudioTrackProvider().getInRange(startTrackIndex - 1, endTrackIndex - 2));
 
-            channel.sendMessage("트랙번호 #" + startTrackIndex + " ~ #" + endTrackIndex + " 가 스킵되었습니다.").queue();
+            Pair<Boolean, String> pair = player.skipTracksForMemberPerms(channel, invoker, tracks);
+
+            if(pair.getLeft()) {
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("skipRangeSuccess"), startTrackIndex, endTrackIndex)).queue();
+            }
         } else {
-            channel.sendMessage("잘못된 명령입니다.\n사용방법 : ```\n;;skip\n;;skip <트랙번호>\n;;skip <트랙범위> 사용 예: ;;skip 10-23```").queue();
+            channel.sendMessage(I18n.get(guild).getString("skipInvalidArgCount").replace(Config.DEFAULT_PREFIX, Config.CONFIG.getPrefix())).queue();
         }
     }
 
     private void skipNext(Guild guild, TextChannel channel, Member invoker, Message message, String[] args){
         GuildPlayer player = PlayerRegistry.get(guild);
         AudioTrackContext atc = player.getPlayingTrack();
-        player.skip();
         if(atc == null) {
-            channel.sendMessage("스킵할 트랙을 찾을수 없습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("skipTrackNotFound")).queue();
         } else {
-            channel.sendMessage("트랙번호 #1 가 스킵되었습니다.\n**" + atc.getTrack().getInfo().title + "**").queue();
+            Pair<Boolean, String> result = player.skipTracksForMemberPerms(channel, invoker, atc);
+            if(result.getLeft()) {
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("skipSuccess"), 1, atc.getEffectiveTitle())).queue();
+            }
         }
     }
 

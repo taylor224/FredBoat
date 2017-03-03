@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,13 +25,16 @@
 
 package fredboat.command.music.control;
 
+import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.audio.VideoSelection;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
+import fredboat.util.TextUtils;
 import fredboat.util.YoutubeAPI;
-import fredboat.util.YoutubeVideo;
 import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
@@ -43,7 +46,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,7 +97,7 @@ public class PlayCommand extends Command implements IMusicCommand {
         player.setPause(false);
 
         try {
-            message.deleteMessage().queue();
+            message.delete().queue();
         } catch (Exception ignored) {
 
         }
@@ -103,14 +106,14 @@ public class PlayCommand extends Command implements IMusicCommand {
     private void handleNoArguments(Guild guild, TextChannel channel, Member invoker, Message message) {
         GuildPlayer player = PlayerRegistry.get(guild);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("현재 플레이어가 재생할수 있는 곡이 없습니다. 다음 명령어를 통해 곡을 추가해주세요. \n;;play <주소 혹은 검색어>").queue();
+            channel.sendMessage(I18n.get(guild).getString("playQueueEmpty")).queue();
         } else if (player.isPlaying()) {
-            channel.sendMessage("이미 재생 중입니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("playAlreadyPlaying")).queue();
         } else if (player.getUsersInVC().isEmpty()) {
-            channel.sendMessage("현재 음성채널에 접속해 있지 않습니다. 플레이를 위해서는 먼저 음성채널에 접속해야 합니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("playVCEmpty")).queue();
         } else {
             player.play();
-            channel.sendMessage("잠시후 재생이 시작됩니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("playWillNowPlay")).queue();
         }
     }
 
@@ -122,40 +125,44 @@ public class PlayCommand extends Command implements IMusicCommand {
         //Now remove all punctuation
         query = query.replaceAll("[.,/#!$%\\^&*;:{}=\\-_`~()]", "");
 
-        Message outMsg = channel.sendMessage("`{q}` 을 검색하고 있습니다...".replace("{q}", query)).complete(true);
+        Message outMsg = channel.sendMessage(I18n.get(guild).getString("playSearching").replace("{q}", query)).complete(true);
 
-        ArrayList<YoutubeVideo> vids = null;
+        AudioPlaylist list;
         try {
-            vids = YoutubeAPI.searchForVideos(query);
+            list = YoutubeAPI.searchForVideos(query);
         } catch (JSONException e) {
-            channel.sendMessage("유튜브 곡 검색 중 에러가 발생하였습니다. 유튜브 주소 입력을 통해서도 곡 추가가 가능합니다.\n```\n;;play <유튜브 주소>```").queue();
+            channel.sendMessage(I18n.get(guild).getString("playYoutubeSearchError")).queue();
             log.debug("YouTube search exception", e);
             return;
         }
 
-        if (vids.isEmpty()) {
-            outMsg.editMessage("`{q}` 에 대한 검색결과가 없습니다.".replace("{q}", query)).queue();
+        if (list == null || list.getTracks().size() == 0) {
+            outMsg.editMessage(I18n.get(guild).getString("playSearchNoResults").replace("{q}", query)).queue();
         } else {
             //Clean up any last search by this user
             GuildPlayer player = PlayerRegistry.get(guild);
 
+            //Get at most 5 tracks
+            List<AudioTrack> selectable = list.getTracks().subList(0, Math.min(4, list.getTracks().size()));
+
             VideoSelection oldSelection = player.selections.get(invoker.getUser().getId());
             if(oldSelection != null) {
-                oldSelection.getOutMsg().deleteMessage().queue();
+                oldSelection.getOutMsg().delete().queue();
             }
 
             MessageBuilder builder = new MessageBuilder();
-            builder.append("**`;;play 숫자` 명령어를 통해 곡을 선택해주세요**");
+            builder.append(I18n.get(guild).getString("playSelectVideo"));
 
             int i = 1;
-            for (YoutubeVideo vid : vids) {
+            for (AudioTrack track : selectable) {
                 builder.append("\n**")
                         .append(String.valueOf(i))
                         .append(":** ")
-                        .append(vid.getName())
+                        .append(track.getInfo().title)
                         .append(" (")
-                        .append(vid.getDurationFormatted())
+                        .append(TextUtils.formatTime(track.getInfo().length))
                         .append(")");
+
                 i++;
             }
 
@@ -163,7 +170,7 @@ public class PlayCommand extends Command implements IMusicCommand {
 
             player.setCurrentTC(channel);
 
-            player.selections.put(invoker.getUser().getId(), new VideoSelection(vids, outMsg));
+            player.selections.put(invoker.getUser().getId(), new VideoSelection(selectable, outMsg));
         }
     }
 

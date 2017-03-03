@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,14 +31,19 @@ import fredboat.audio.queue.AudioTrackContext;
 import fredboat.audio.queue.IdentifierContext;
 import fredboat.audio.queue.SimpleTrackProvider;
 import fredboat.commandmeta.MessagingException;
+import fredboat.feature.I18n;
+import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.entities.impl.MemberImpl;
 import net.dv8tion.jda.core.managers.AudioManager;
 import net.dv8tion.jda.core.utils.PermissionUtil;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +54,7 @@ public class GuildPlayer extends AbstractPlayer {
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(GuildPlayer.class);
 
     public final JDA jda;
-    public final String guildId;
+    final String guildId;
     public final Map<String, VideoSelection> selections = new HashMap<>();
     private TextChannel currentTC;
 
@@ -64,6 +69,7 @@ public class GuildPlayer extends AbstractPlayer {
         manager.setSendingHandler(this);
         audioTrackProvider = new SimpleTrackProvider();
         audioLoader = new AudioLoader(audioTrackProvider, getPlayerManager(), this);
+        player.addListener(new PlayerEventListener(this));
     }
 
     public void joinChannel(Member usr) throws MessagingException {
@@ -73,15 +79,16 @@ public class GuildPlayer extends AbstractPlayer {
 
     public void joinChannel(VoiceChannel targetChannel) throws MessagingException {
         if (targetChannel == null) {
-            throw new MessagingException("현재 음성채널에 접속해 있지 않습니다. 플레이를 위해서는 먼저 음성채널에 접속해야 합니다.");
+            throw new MessagingException(I18n.get(getGuild()).getString("playerUserNotInChannel"));
         }
 
-        if (!PermissionUtil.checkPermission(targetChannel, targetChannel.getGuild().getSelfMember(), Permission.VOICE_CONNECT)) {
-            throw new MessagingException("음성채널에 참가할수 있는 권한이 없습니다.");
+        if (!PermissionUtil.checkPermission(targetChannel, targetChannel.getGuild().getSelfMember(), Permission.VOICE_CONNECT)
+                && !targetChannel.getMembers().contains(getGuild().getSelfMember())) {
+            throw new MessagingException(I18n.get(getGuild()).getString("playerJoinConnectDenied"));
         }
 
         if (!PermissionUtil.checkPermission(targetChannel, targetChannel.getGuild().getSelfMember(), Permission.VOICE_SPEAK)) {
-            throw new MessagingException("음악 재생을 위해서는 발언권 권한이 필요합니다.");
+            throw new MessagingException(I18n.get(getGuild()).getString("playerJoinSpeakDenied"));
         }
 
         AudioManager manager = getGuild().getAudioManager();
@@ -95,9 +102,9 @@ public class GuildPlayer extends AbstractPlayer {
         AudioManager manager = getGuild().getAudioManager();
         if (!silent) {
             if (manager.getConnectedChannel() == null) {
-                channel.sendMessage("현재 음성채널에 접속해있지 않습니다.").queue();
+                channel.sendMessage(I18n.get(getGuild()).getString("playerNotInChannel")).queue();
             } else {
-                channel.sendMessage("" + getChannel().getName() + " 채널과의 연결을 종료합니다.").queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(getGuild()).getString("playerLeftChannel"), getChannel().getName())).queue();
             }
         }
         manager.closeAudioConnection();
@@ -141,7 +148,11 @@ public class GuildPlayer extends AbstractPlayer {
     }
 
     public void queue(AudioTrackContext atc){
+        if(atc.getMember() != null) {
+            joinChannel(atc.getMember());
+        }
         audioTrackProvider.add(atc);
+        play();
     }
 
     public int getSongCount() {
@@ -153,13 +164,13 @@ public class GuildPlayer extends AbstractPlayer {
         long millis = 0;
         for (AudioTrackContext atc : getQueuedTracks()) {
             if (!atc.getTrack().getInfo().isStream) {
-                millis += atc.getTrack().getDuration();
+                millis += atc.getEffectiveDuration();
             }
         }
 
-        AudioTrack at = getPlayingTrack().getTrack();
-        if (at != null && !at.getInfo().isStream) {
-            millis += Math.max(0, at.getDuration() - at.getPosition());
+        AudioTrackContext atc = getPlayingTrack();
+        if (atc != null && !atc.getTrack().getInfo().isStream) {
+            millis += Math.max(0, atc.getEffectiveDuration() - atc.getEffectivePosition());
         }
 
         return millis / 1000;
@@ -220,17 +231,11 @@ public class GuildPlayer extends AbstractPlayer {
     }
 
     public boolean isRepeat() {
-        if (audioTrackProvider instanceof SimpleTrackProvider && ((SimpleTrackProvider) audioTrackProvider).isRepeat()) {
-            return true;
-        }
-        return false;
+        return audioTrackProvider instanceof SimpleTrackProvider && ((SimpleTrackProvider) audioTrackProvider).isRepeat();
     }
 
     public boolean isShuffle() {
-        if (audioTrackProvider instanceof SimpleTrackProvider && ((SimpleTrackProvider) audioTrackProvider).isShuffle()) {
-            return true;
-        }
-        return false;
+        return audioTrackProvider instanceof SimpleTrackProvider && ((SimpleTrackProvider) audioTrackProvider).isShuffle();
     }
 
     public void setRepeat(boolean repeat) {
@@ -257,8 +262,67 @@ public class GuildPlayer extends AbstractPlayer {
         return currentTC;
     }
 
-    public void clear() {
-        audioTrackProvider.clear();
+    //Success, fail message
+    private Pair<Boolean, String> canMemberSkipTracks(Member member, List<AudioTrackContext> list) {
+        if(PermissionUtil.checkPermission(getGuild(), member, Permission.MESSAGE_MANAGE)){
+            return new ImmutablePair<>(true, null);
+        } else {
+            //We are not a mod
+            int otherPeoplesTracks = 0;
+
+            for (AudioTrackContext atc : list) {
+                if(!atc.getMember().equals(member)) otherPeoplesTracks++;
+            }
+
+            if (otherPeoplesTracks > 1) {
+                return new ImmutablePair<>(false, I18n.get(getGuild()).getString("skipDeniedTooManyTracks"));
+            } else {
+                return new ImmutablePair<>(true, null);
+            }
+        }
+    }
+
+    public Pair<Boolean, String> skipTracksForMemberPerms(TextChannel channel, Member member, AudioTrackContext atc) {
+        List<AudioTrackContext> list = new ArrayList<>();
+        list.add(atc);
+        return skipTracksForMemberPerms(channel, member, list);
+    }
+
+    public Pair<Boolean, String> skipTracksForMemberPerms(TextChannel channel, Member member, List<AudioTrackContext> list) {
+        Pair<Boolean, String> pair = canMemberSkipTracks(member, list);
+
+        if (pair.getLeft()) {
+            skipTracks(list);
+        } else {
+            TextUtils.replyWithName(channel, member, pair.getRight());
+        }
+
+        return pair;
+    }
+
+    private void skipTracks(List<AudioTrackContext> list) {
+        boolean skipCurrentTrack = false;
+
+        for (AudioTrackContext atc : list) {
+            if(atc.equals(getPlayingTrack())){
+                //Should be skipped last, in respect to PlayerEventListener
+                skipCurrentTrack = true;
+            } else {
+                skipTrack(atc);
+            }
+        }
+
+        if(skipCurrentTrack) {
+            skip();
+        }
+    }
+
+    private void skipTrack(AudioTrackContext atc) {
+        if(getPlayingTrack().equals(atc)) {
+            skip();
+        } else {
+            audioTrackProvider.remove(atc);
+        }
     }
 
 }

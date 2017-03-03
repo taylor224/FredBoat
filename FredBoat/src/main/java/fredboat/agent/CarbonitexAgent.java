@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 package fredboat.agent;
 
 import com.mashape.unirest.http.Unirest;
+import fredboat.Config;
 import fredboat.FredBoat;
 import fredboat.util.DistributionEnum;
 import org.slf4j.LoggerFactory;
@@ -42,7 +43,7 @@ public class CarbonitexAgent extends Thread {
 
     @Override
     public void run() {
-        if (FredBoat.distribution != DistributionEnum.MAIN) {
+        if (Config.CONFIG.getDistribution() != DistributionEnum.MAIN) {
             return;
         }
 

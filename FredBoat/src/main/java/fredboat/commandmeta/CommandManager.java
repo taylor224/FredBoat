@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,13 @@
 
 package fredboat.commandmeta;
 
-import fredboat.FredBoat;
-import fredboat.commandmeta.abs.*;
+
+import fredboat.Config;
+import fredboat.commandmeta.abs.Command;
+import fredboat.commandmeta.abs.ICommandOwnerRestricted;
+import fredboat.commandmeta.abs.IMusicBackupCommand;
+import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import fredboat.util.*;
 import net.dv8tion.jda.core.Permission;
 import net.dv8tion.jda.core.entities.Guild;
@@ -49,18 +54,23 @@ public class CommandManager {
         String[] args = commandToArguments(message.getRawContent());
         commandsExecuted++;
 
-        if (invoked instanceof IMusicBackupCommand && DiscordUtil.isMusicBot() && DiscordUtil.isMainBotPresent(guild)) {
-            log.info("Ignored command because main bot is present");
+        if (invoked instanceof IMusicBackupCommand
+                && guild.getJDA().getSelfUser().getId().equals(BotConstants.MUSIC_BOT_ID)
+                && DiscordUtil.isMainBotPresent(guild)) {
+            log.info("Ignored command because main bot is present and I am the public music FredBoat");
             return;
         }
 
-        if (FredBoat.distribution == DistributionEnum.PATRON && guild.getId().equals(BotConstants.FREDBOAT_HANGOUT_ID)) {
+        if (guild.getJDA().getSelfUser().getId().equals(BotConstants.PATRON_BOT_ID)
+                && Config.CONFIG.getDistribution() == DistributionEnum.PATRON
+                && guild.getId().equals(BotConstants.FREDBOAT_HANGOUT_ID)) {
             log.info("Ignored command because patron bot is not allowed in FredBoatHangout");
             return;
         }
 
-        if (FredBoat.distribution == DistributionEnum.MUSIC
+        if (Config.CONFIG.getDistribution() == DistributionEnum.MUSIC
                 && DiscordUtil.isPatronBotPresentAndOnline(guild)
+                && Config.CONFIG.getPrefix().equals(Config.DEFAULT_PREFIX)
                 && !guild.getId().equals(BotConstants.FREDBOAT_HANGOUT_ID)) {
             log.info("Ignored command because patron bot is present");
             return;
@@ -75,23 +85,25 @@ public class CommandManager {
         }
 
         if (invoked instanceof ICommandOwnerRestricted) {
-            //Check if invoker is actually Fre_d
-            if (!invoker.getUser().getId().equals(BotConstants.OWNER_ID)) {
-                channel.sendMessage(TextUtils.prefaceWithName(invoker, " you are not allowed to use that command!")).queue();
+            //Check if invoker is actually the owner
+            if (!invoker.getUser().getId().equals(DiscordUtil.getOwnerId(guild.getJDA()))) {
+                channel.sendMessage(TextUtils.prefaceWithName(invoker, I18n.get(guild).getString("cmdAccessDenied"))).queue();
                 return;
             }
         }
 
         //Hardcode music commands in FredBoatHangout. Blacklist any channel that isn't #general or #staff, but whitelist Frederikam
-        if (invoked instanceof IMusicCommand && guild.getId().equals("174820236481134592")) {
+        if (invoked instanceof IMusicCommand
+                && guild.getId().equals(BotConstants.FREDBOAT_HANGOUT_ID)
+                && guild.getJDA().getSelfUser().getId().equals(BotConstants.MUSIC_BOT_ID)) {
             if (!channel.getId().equals("174821093633294338")
                     && !channel.getId().equals("217526705298866177")
-                    //&& !invoker.getUser().getId().equals("203330266461110272")//Cynth
+                    && !invoker.getUser().getId().equals("203330266461110272")//Cynth
                     && !invoker.getUser().getId().equals("81011298891993088")) {
-                message.deleteMessage().queue();
+                message.delete().queue();
                 channel.sendMessage(invoker.getEffectiveName() + ": Please don't spam music commands outside of <#174821093633294338>.").queue(message1 -> {
                     RestActionScheduler.schedule(
-                            message1.deleteMessage(),
+                            message1.delete(),
                             5,
                             TimeUnit.SECONDS
                     );

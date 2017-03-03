@@ -54,7 +54,6 @@ Temporary Items
 
 # Custom
 lib/
-test/
 dist/*
 build/
 build.xml

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ package fredboat.command.fun;
 
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import fredboat.FredBoat;
+import fredboat.Config;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.ICommand;
 import fredboat.event.EventListenerBoat;
@@ -53,7 +53,7 @@ public class LeetCommand extends Command implements ICommand {
         channel.sendTyping().queue();
 
         if(args.length < 2) {
-            channel.sendMessage("Proper usage: ;;leet <text>").queue();
+            channel.sendMessage("Proper usage: " + Config.CONFIG.getPrefix() + "leet <text>").queue();
             return;
         }
 
@@ -62,7 +62,7 @@ public class LeetCommand extends Command implements ICommand {
         }
         res = res.substring(1);
         try {
-            res = Unirest.get("https://montanaflynn-l33t-sp34k.p.mashape.com/encode?text=" + URLEncoder.encode(res, "UTF-8").replace("+", "%20")).header("X-Mashape-Key", FredBoat.mashapeKey).asString().getBody();
+            res = Unirest.get("https://montanaflynn-l33t-sp34k.p.mashape.com/encode?text=" + URLEncoder.encode(res, "UTF-8").replace("+", "%20")).header("X-Mashape-Key", Config.CONFIG.getMashapeKey()).asString().getBody();
         } catch (UnirestException ex) {
             Message myMsg = TextUtils.replyWithName(channel, invoker, " Could not connect to API! "+ex.getMessage());
             return;

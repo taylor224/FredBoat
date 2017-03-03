@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 package fredboat.command.util;
 
 import fredboat.commandmeta.abs.Command;
+import fredboat.feature.I18n;
 import fredboat.util.BrainfuckException;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
@@ -34,6 +35,7 @@ import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 
 import java.nio.ByteBuffer;
+import java.text.MessageFormat;
 
 public class BrainfuckCommand extends Command {
 
@@ -41,7 +43,7 @@ public class BrainfuckCommand extends Command {
     char[] code;
     public static final int MAX_CYCLE_COUNT = 10000;
 
-    public String process(String input) {
+    public String process(String input, Guild guild) {
         int data = 0;
         char[] inChars = input.toCharArray();
         int inChar = 0;
@@ -50,7 +52,7 @@ public class BrainfuckCommand extends Command {
         for (int instruction = 0; instruction < code.length; ++instruction) {
             cycleCount++;
             if (cycleCount > MAX_CYCLE_COUNT) {
-                throw new BrainfuckException("Program exceeded the maximum cycle count of " + MAX_CYCLE_COUNT);
+                throw new BrainfuckException(MessageFormat.format(I18n.get(guild).getString("brainfuckCycleLimit"), MAX_CYCLE_COUNT));
             }
             char command = code[instruction];
             switch (command) {
@@ -60,7 +62,7 @@ public class BrainfuckCommand extends Command {
                 case '<':
                     --data;
                     if(data < 0){
-                        throw new BrainfuckException("Data pointer out of bounds: "+data);
+                        throw new BrainfuckException(MessageFormat.format(I18n.get(guild).getString("brainfuckDataPointerOutOfBounds"), data));
                     }
                     break;
                 case '+':
@@ -77,7 +79,7 @@ public class BrainfuckCommand extends Command {
                         bytes.put(data, (byte) inChars[inChar++]);
                         break;
                     } catch (IndexOutOfBoundsException ex) {
-                        throw new BrainfuckException("Input out of bounds at position: " + (inChar - 1), ex);
+                        throw new BrainfuckException(MessageFormat.format(I18n.get(guild).getString("brainfuckInputOOB"), inChar - 1), ex);
                     }
                 case '[':
                     if (bytes.get(data) == 0) {
@@ -124,7 +126,7 @@ public class BrainfuckCommand extends Command {
 
         inputArg = inputArg.replaceAll("ZERO", String.valueOf((char) 0));
 
-        String out = process(inputArg);
+        String out = process(inputArg, guild);
         //TextUtils.replyWithMention(channel, invoker, " " + out);
         String out2 = "";
         for (char c : out.toCharArray()) {
@@ -134,7 +136,7 @@ public class BrainfuckCommand extends Command {
         try {
             TextUtils.replyWithName(channel, invoker, " " + out + "\n-------\n" + out2.substring(1));
         } catch (IndexOutOfBoundsException ex) {
-TextUtils.replyWithName(channel, invoker, " There was no output");
+TextUtils.replyWithName(channel, invoker, I18n.get(guild).getString("brainfuckNoOutput"));
         }
     }
 

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
@@ -42,9 +43,9 @@ public class ShuffleCommand extends Command implements IMusicCommand {
         player.setShuffle(!player.isShuffle());
 
         if (player.isShuffle()) {
-            channel.sendMessage("셔플(랜덤) 기능이 동작되었습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("shuffleOn")).queue();
         } else {
-            channel.sendMessage("셔플(랜덤) 기능이 해제되었습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("shuffleOff")).queue();
         }
     }
 

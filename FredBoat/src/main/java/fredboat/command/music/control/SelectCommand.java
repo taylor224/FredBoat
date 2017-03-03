@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,18 +25,23 @@
 
 package fredboat.command.music.control;
 
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.audio.VideoSelection;
+import fredboat.audio.queue.AudioTrackContext;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
-import fredboat.util.YoutubeVideo;
+import fredboat.feature.I18n;
+import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.exceptions.PermissionException;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
+
+import java.text.MessageFormat;
 
 public class SelectCommand extends Command implements IMusicCommand {
 
@@ -55,25 +60,25 @@ public class SelectCommand extends Command implements IMusicCommand {
                 if (selection.getChoices().size() < i || i < 1) {
                     throw new NumberFormatException();
                 } else {
-                    YoutubeVideo selected = selection.choices.get(i - 1);
+                    AudioTrack selected = selection.getChoices().get(i - 1);
                     player.selections.remove(invoker.getUser().getId());
-                    String msg = "곡 **#" + i + "**번 이 선택되었습니다. **" + selected.getName() + "** (" + selected.getDurationFormatted() + ")";
+                    String msg = MessageFormat.format(I18n.get(guild).getString("selectSuccess"), i, selected.getInfo().title, TextUtils.formatTime(selected.getInfo().length));
                     selection.getOutMsg().editMessage(msg).complete(true);
-                    player.queue("https://www.youtube.com/watch?v=" + selected.getId(), channel, invoker);
+                    player.queue(new AudioTrackContext(selected, invoker));
                     player.setPause(false);
                     try {
-                        message.deleteMessage().queue();
+                        message.delete().queue();
                     } catch (PermissionException ignored) {
 
                     }
                 }
             } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-                channel.sendMessage("번호는 1-" + selection.getChoices().size() + " 사이에서 선택되어야 합니다.").queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("selectInterval"), selection.getChoices().size())).queue();
             } catch (RateLimitedException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            channel.sendMessage("본 명령을 사용하기 위해서는 먼저 play 명령을 통해 유튜브 검색을 하셔야 합니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("selectSelectionNotGiven")).queue();
         }
     }
 

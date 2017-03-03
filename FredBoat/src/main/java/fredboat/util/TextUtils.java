@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +27,17 @@ package fredboat.util;
 
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import fredboat.Config;
 import fredboat.FredBoat;
 import fredboat.commandmeta.MessagingException;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageChannel;
 import net.dv8tion.jda.core.entities.TextChannel;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,11 +70,11 @@ public class TextUtils {
         return msg.charAt(0) == ' ' ? msg : " " + msg;
     }
 
-    public static void handleException(Throwable e, MessageChannel channel) {
+    public static void handleException(Throwable e, TextChannel channel) {
         handleException(e, channel, null);
     }
 
-    public static void handleException(Throwable e, MessageChannel channel, Member invoker) {
+    public static void handleException(Throwable e, TextChannel channel, Member invoker) {
         if (e instanceof MessagingException) {
             channel.sendMessage(invoker.getEffectiveName() + ": " + e.getMessage()).queue();
             return;
@@ -85,17 +87,17 @@ public class TextUtils {
         if (invoker != null) {
             builder.append(invoker);
 
-            String filtered = " an error occured :anger: ```java\n" + e.toString() + "\n";
+            String filtered = MessageFormat.format(I18n.get(invoker.getGuild()).getString("utilErrorOccurred"), e.toString());
 
-            for (String str : FredBoat.getGoogleKeys()) {
+            for (String str : Config.CONFIG.getGoogleKeys()) {
                 filtered = filtered.replace(str, "GOOGLE_SERVER_KEY");
             }
 
             builder.append(filtered);
         } else {
-            String filtered = "An error occured :anger: ```java\n" + e.toString() + "\n";
+            String filtered = MessageFormat.format(I18n.DEFAULT.getProps().getString("utilErrorOccurred"), e.toString());
 
-            for (String str : FredBoat.getGoogleKeys()) {
+            for (String str : Config.CONFIG.getGoogleKeys()) {
                 filtered = filtered.replace(str, "GOOGLE_SERVER_KEY");
             }
 
@@ -116,10 +118,9 @@ public class TextUtils {
         try {
             channel.sendMessage(out).queue();
         } catch (UnsupportedOperationException tooLongEx) {
-            try {
-                channel.sendMessage("An error occured :anger: Error was too long to display.\n" + postToHastebin(out.getRawContent()) + ".txt").queue();
+            try {channel.sendMessage(MessageFormat.format(I18n.get(channel.getGuild()).getString("errorOccurredTooLong"), postToHastebin(out.getRawContent()))).queue();
             } catch (UnirestException e1) {
-                channel.sendMessage("An error occured :anger: Was too long and was unable to post to Hastebin!").queue();
+                channel.sendMessage(I18n.get(channel.getGuild()).getString("errorOccurredTooLongAndUnirestException")).queue();
             }
         }
     }

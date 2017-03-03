@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.source.beam.BeamAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager;
@@ -38,10 +39,13 @@ import com.sedmelluq.discord.lavaplayer.source.vimeo.VimeoAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
+import com.sedmelluq.discord.lavaplayer.track.TrackMarker;
 import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
-import fredboat.FredBoat;
+import fredboat.Config;
 import fredboat.audio.queue.AudioTrackContext;
 import fredboat.audio.queue.ITrackProvider;
+import fredboat.audio.queue.SplitAudioTrackContext;
+import fredboat.audio.queue.TrackEndMarkerHandler;
 import fredboat.audio.source.PlaylistImportSourceManager;
 import fredboat.audio.source.bgmstore.BgmstoreAudioSourceManager;
 import fredboat.util.DistributionEnum;
@@ -75,12 +79,12 @@ public abstract class AbstractPlayer extends AudioEventAdapter implements AudioS
             registerSourceManagers(playerManager);
 
             //Patrons get higher quality
-            AudioConfiguration.ResamplingQuality quality = FredBoat.distribution == DistributionEnum.PATRON ? AudioConfiguration.ResamplingQuality.HIGH : AudioConfiguration.ResamplingQuality.LOW;
+            AudioConfiguration.ResamplingQuality quality = Config.CONFIG.getDistribution() == DistributionEnum.PATRON ? AudioConfiguration.ResamplingQuality.HIGH : AudioConfiguration.ResamplingQuality.LOW;
             playerManager.getConfiguration().setResamplingQuality(quality);
             playerManager.enableGcMonitoring();
 
-            if (FredBoat.distribution != DistributionEnum.PATRON && FredBoat.distribution != DistributionEnum.DEVELOPMENT && FredBoat.isLavaplayerNodesEnabled()) {
-                playerManager.useRemoteNodes(FredBoat.getLavaplayerNodes());
+            if (Config.CONFIG.getDistribution() != DistributionEnum.PATRON && Config.CONFIG.getDistribution() != DistributionEnum.DEVELOPMENT && Config.CONFIG.isLavaplayerNodesEnabled()) {
+                playerManager.useRemoteNodes(Config.CONFIG.getLavaplayerNodes());
             }
         }
     }
@@ -93,8 +97,9 @@ public abstract class AbstractPlayer extends AudioEventAdapter implements AudioS
         mng.registerSourceManager(new TwitchStreamAudioSourceManager());
         mng.registerSourceManager(new VimeoAudioSourceManager());
         mng.registerSourceManager(new BgmstoreAudioSourceManager());
+        mng.registerSourceManager(new BeamAudioSourceManager());
         mng.registerSourceManager(new HttpAudioSourceManager());
-
+        
         return mng;
     }
 
@@ -164,7 +169,9 @@ public abstract class AbstractPlayer extends AudioEventAdapter implements AudioS
 
     public List<AudioTrackContext> getRemainingTracksOrdered() {
         List<AudioTrackContext> list = new ArrayList<>();
-        list.add(getPlayingTrack());
+        if (getPlayingTrack() != null) {
+            list.add(getPlayingTrack());
+        }
 
         list.addAll(getAudioTrackProvider().getAsListOrdered());
         return list;
@@ -205,6 +212,16 @@ public abstract class AbstractPlayer extends AudioEventAdapter implements AudioS
 
             if(context != null) {
                 player.playTrack(context.getTrack());
+                context.getTrack().setPosition(context.getStartPosition());
+
+                if(context instanceof SplitAudioTrackContext){
+                    //Ensure we don't step over our bounds
+                    log.info("Start: " + context.getStartPosition() + "End: " + (context.getStartPosition() + context.getEffectiveDuration()));
+
+                    context.getTrack().setMarker(
+                            new TrackMarker(context.getStartPosition() + context.getEffectiveDuration(),
+                                    new TrackEndMarkerHandler(this, context)));
+                }
             }
         } else {
             log.warn("TrackProvider doesn't exist");

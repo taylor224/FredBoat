@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,20 +24,22 @@
  */
 package fredboat.event;
 
-import fredboat.FredBoat;
+import fredboat.Config;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.command.fun.TalkCommand;
 import fredboat.commandmeta.CommandManager;
 import fredboat.commandmeta.CommandRegistry;
 import fredboat.commandmeta.abs.Command;
-import fredboat.util.BotConstants;
+import fredboat.db.EntityReader;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Game;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.ReconnectedEvent;
 import net.dv8tion.jda.core.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.core.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.core.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.core.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
@@ -53,23 +55,14 @@ public class EventListenerBoat extends AbstractScopedEventListener {
     private static final Logger log = LoggerFactory.getLogger(EventListenerBoat.class);
 
     public static HashMap<String, Message> messagesToDeleteIfIdDeleted = new HashMap<>();
-    public User lastUserToReceiveHelp;
+    private User lastUserToReceiveHelp;
 
-    public static int messagesReceived = 0;
-
-    public EventListenerBoat(int scope, String defaultPrefix) {
-        super(scope, defaultPrefix);
+    public EventListenerBoat(int scope) {
+        super(scope);
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        /*log.info(event.getJDA().getSelfInfo().getUsername());
-        log.info(event);
-        log.info(event.getAuthor());
-        log.info(event.getAuthor().getId());*/
-
-        messagesReceived++;
-
         if (event.getPrivateChannel() != null) {
             log.info("PRIVATE" + " \t " + event.getAuthor().getName() + " \t " + event.getMessage().getRawContent());
             return;
@@ -80,11 +73,11 @@ public class EventListenerBoat extends AbstractScopedEventListener {
             return;
         }
 
-        if (event.getMessage().getContent().length() < defaultPrefix.length()) {
+        if (event.getMessage().getContent().length() < Config.CONFIG.getPrefix().length()) {
             return;
         }
 
-        if (event.getMessage().getContent().substring(0, defaultPrefix.length()).equals(defaultPrefix)) {
+        if (event.getMessage().getContent().substring(0, Config.CONFIG.getPrefix().length()).equals(Config.CONFIG.getPrefix())) {
             Command invoked = null;
             log.info(event.getGuild().getName() + " \t " + event.getAuthor().getName() + " \t " + event.getMessage().getRawContent());
             Matcher matcher = COMMAND_NAME_PREFIX.matcher(event.getMessage().getContent());
@@ -95,7 +88,7 @@ public class EventListenerBoat extends AbstractScopedEventListener {
                 if(entry != null) {
                     invoked = entry.command;
                 } else {
-                    log.info("알수없는 명령어 입니다 :", cmdName);
+                    log.info("Unknown command:", cmdName);
                 }
             }
 
@@ -133,19 +126,19 @@ public class EventListenerBoat extends AbstractScopedEventListener {
             return;
         }
 
-        event.getChannel().sendMessage(BotConstants.HELP_TEXT).queue();
+        event.getChannel().sendMessage(I18n.DEFAULT.getProps().getString("helpDM")).queue();
         lastUserToReceiveHelp = event.getAuthor();
     }
 
     @Override
     public void onReady(ReadyEvent event) {
         super.onReady(event);
-        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] 유루유리"));
+        event.getJDA().getPresence().setGame(Game.of("유루유리"));
     }
 
     @Override
     public void onReconnect(ReconnectedEvent event) {
-        event.getJDA().getPresence().setGame(Game.of("[" + FredBoat.getInstance(event.getJDA()).getShardInfo().getShardId() + "] 유루유리"));
+        event.getJDA().getPresence().setGame(Game.of("유루유리"));
     }
 
     /* music related */
@@ -161,7 +154,22 @@ public class EventListenerBoat extends AbstractScopedEventListener {
                 && player.getUserCurrentVoiceChannel(event.getGuild().getSelfMember()) == event.getChannelLeft()
                 && !player.isPaused()) {
             player.pause();
-            player.getActiveTextChannel().sendMessage("모든 유저가 음성채널에서 떠났습니다. 플레이어를 일시정지 할겁니다. (삐짐)").queue();
+            player.getActiveTextChannel().sendMessage(I18n.get(event.getGuild()).getString("eventUsersLeftVC")).queue();
+        }
+    }
+
+    @Override
+    public void onGuildVoiceJoin(GuildVoiceJoinEvent event) {
+        GuildPlayer player = PlayerRegistry.getExisting(event.getGuild());
+
+        if(player != null
+                && player.isPaused()
+                && player.getPlayingTrack() != null
+                && event.getChannelJoined().getMembers().contains(event.getGuild().getSelfMember())
+                && EntityReader.getGuildConfig(event.getGuild().getId()).isAutoResume()
+                ) {
+            player.getActiveTextChannel().sendMessage(I18n.get(event.getGuild()).getString("eventAutoResumed")).queue();
+            player.setPause(false);
         }
     }
 

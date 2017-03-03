@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ package fredboat.command.music.info;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import com.sedmelluq.discord.lavaplayer.source.bandcamp.BandcampAudioTrack;
+import com.sedmelluq.discord.lavaplayer.source.beam.BeamAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioTrack;
 import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioTrack;
@@ -35,9 +36,10 @@ import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
-import fredboat.audio.source.bgmstore.BgmstoreAudioTrack;
+import fredboat.audio.queue.AudioTrackContext;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import fredboat.util.BotConstants;
 import fredboat.util.TextUtils;
 import fredboat.util.YoutubeAPI;
@@ -48,6 +50,7 @@ import org.json.JSONObject;
 import org.json.XML;
 
 import java.awt.*;
+import java.text.MessageFormat;
 
 public class NowplayingCommand extends Command implements IMusicCommand {
 
@@ -57,39 +60,39 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         player.setCurrentTC(channel);
         if (player.isPlaying()) {
 
-            AudioTrack at = player.getPlayingTrack().getTrack();
+            AudioTrackContext atc = player.getPlayingTrack();
+            AudioTrack at = atc.getTrack();
 
             if (at instanceof YoutubeAudioTrack) {
-                sendYoutubeEmbed(channel, (YoutubeAudioTrack) at);
+                sendYoutubeEmbed(channel, atc, (YoutubeAudioTrack) at);
             } else if (at instanceof SoundCloudAudioTrack) {
-                sendSoundcloudEmbed(channel, (SoundCloudAudioTrack) at);
+                sendSoundcloudEmbed(channel, atc, (SoundCloudAudioTrack) at);
             } else if (at instanceof HttpAudioTrack && at.getIdentifier().contains("gensokyoradio.net")){
                 //Special handling for GR
                 sendGensokyoRadioEmbed(channel);
             } else if (at instanceof HttpAudioTrack) {
-                sendHttpEmbed(channel, (HttpAudioTrack) at);
+                sendHttpEmbed(channel, atc, (HttpAudioTrack) at);
             } else if (at instanceof BandcampAudioTrack) {
-                sendBandcampResponse(channel, (BandcampAudioTrack) at);
+                sendBandcampResponse(channel, atc, (BandcampAudioTrack) at);
             } else if (at instanceof TwitchStreamAudioTrack) {
-                sendTwitchEmbed(channel, (TwitchStreamAudioTrack) at);
-            } else if (at instanceof BgmstoreAudioTrack) {
-                sendBgmstoreEmbed(channel, (BgmstoreAudioTrack) at);
-            }
-            else {
-                sendDefaultEmbed(channel, at);
+                sendTwitchEmbed(channel, atc, (TwitchStreamAudioTrack) at);
+            } else if (at instanceof BeamAudioTrack) {
+                sendBeamEmbed(channel, atc, (BeamAudioTrack) at);
+            } else {
+                sendDefaultEmbed(channel, atc, at);
             }
 
         } else {
-            channel.sendMessage("현재 재생중인 트랙이 없습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("npNotPlaying")).queue();
         }
     }
 
-    private void sendYoutubeEmbed(TextChannel channel, YoutubeAudioTrack at){
+    private void sendYoutubeEmbed(TextChannel channel, AudioTrackContext atc, YoutubeAudioTrack at){
         YoutubeVideo yv = YoutubeAPI.getVideoFromID(at.getIdentifier(), true);
         String timeField = "["
-                + TextUtils.formatTime(at.getPosition())
+                + TextUtils.formatTime(atc.getEffectivePosition())
                 + "/"
-                + TextUtils.formatTime(at.getDuration())
+                + TextUtils.formatTime(atc.getEffectiveDuration())
                 + "]";
 
         String desc = yv.getDescription();
@@ -100,12 +103,11 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         }
 
         EmbedBuilder eb = new EmbedBuilder()
-                .setTitle(at.getInfo().title)
-                .setUrl("https://www.youtube.com/watch?v=" + at.getIdentifier())
-                .addField("재생시간", timeField, true);
+                .setTitle(atc.getEffectiveTitle(), "https://www.youtube.com/watch?v=" + at.getIdentifier())
+                .addField("Time", timeField, true);
 
-        if(desc != null && !desc.equals("")) {
-                eb.addField("설명", desc, false);
+        if(!desc.equals("")) {
+                eb.addField(I18n.get(channel.getGuild()).getString("npDescription"), desc, false);
         }
 
         MessageEmbed embed = eb.setColor(new Color(205, 32, 31))
@@ -116,15 +118,13 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         channel.sendMessage(embed).queue();
     }
 
-    private void sendSoundcloudEmbed(TextChannel channel, SoundCloudAudioTrack at) {
+    private void sendSoundcloudEmbed(TextChannel channel, AudioTrackContext atc, SoundCloudAudioTrack at) {
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
-                .setTitle(at.getInfo().title)
-                .setDescription("["
-                        + TextUtils.formatTime(at.getPosition())
-                        + "/"
-                        + TextUtils.formatTime(at.getDuration())
-                        + "]\n\nSoundCloud") //TODO: Gather description, thumbnail, etc
+                .setTitle(atc.getEffectiveTitle(), null)
+                .setDescription(MessageFormat.format(
+                        I18n.get(channel.getGuild()).getString("npLoadedSoundcloud"),
+                        TextUtils.formatTime(atc.getEffectivePosition()), TextUtils.formatTime(atc.getEffectiveDuration()))) //TODO: Gather description, thumbnail, etc
                 .setColor(new Color(255, 85, 0))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -132,19 +132,19 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         channel.sendMessage(embed).queue();
     }
 
-    private void sendBandcampResponse(TextChannel channel, BandcampAudioTrack at){
+    private void sendBandcampResponse(TextChannel channel, AudioTrackContext atc, BandcampAudioTrack at){
         String desc = at.getDuration() == Long.MAX_VALUE ?
                 "[LIVE]" :
                 "["
-                        + TextUtils.formatTime(at.getPosition())
+                        + TextUtils.formatTime(atc.getEffectivePosition())
                         + "/"
-                        + TextUtils.formatTime(at.getDuration())
+                        + TextUtils.formatTime(atc.getEffectiveDuration())
                         + "]";
 
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
-                .setTitle(at.getInfo().title)
-                .setDescription(desc + "\n\nBandcamp")
+                .setTitle(atc.getEffectiveTitle(), null)
+                .setDescription(MessageFormat.format(I18n.get(channel.getGuild()).getString("npLoadedBandcamp"), desc))
                 .setColor(new Color(99, 154, 169))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -152,11 +152,11 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         channel.sendMessage(embed).queue();
     }
 
-    private void sendTwitchEmbed(TextChannel channel, TwitchStreamAudioTrack at){
+    private void sendTwitchEmbed(TextChannel channel, AudioTrackContext atc, TwitchStreamAudioTrack at){
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, at.getIdentifier(), null) //TODO: Add thumb
-                .setTitle(at.getInfo().title)
-                .setDescription("Twitch")
+                .setTitle(atc.getEffectiveTitle(), null)
+                .setDescription(I18n.get(channel.getGuild()).getString("npLoadedTwitch"))
                 .setColor(new Color(100, 65, 164))
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -164,13 +164,33 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         channel.sendMessage(embed).queue();
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void sendBeamEmbed(TextChannel channel, AudioTrackContext atc, BeamAudioTrack at){
+        try {
+            JSONObject json = Unirest.get("https://beam.pro/api/v1/channels/" + at.getInfo().author).asJson().getBody().getObject();
+
+            MessageEmbed embed = new EmbedBuilder()
+                    .setAuthor(at.getInfo().author, "https://beam.pro/" + at.getInfo().author, json.getJSONObject("user").getString("avatarUrl"))
+                    .setTitle(atc.getEffectiveTitle(), "https://beam.pro/" + at.getInfo().author)
+                    .setDescription(json.getJSONObject("user").getString("bio"))
+                    .setImage(json.getJSONObject("thumbnail").getString("url"))
+                    .setColor(new Color(77, 144, 244))
+                    .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
+                    .build();
+
+            channel.sendMessage(embed).queue();
+        } catch (UnirestException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     static void sendGensokyoRadioEmbed(TextChannel channel) {
         try {
             JSONObject data = XML.toJSONObject(Unirest.get("https://gensokyoradio.net/xml/").asString().getBody()).getJSONObject("GENSOKYORADIODATA");
 
             String rating = data.getJSONObject("MISC").getInt("TIMESRATED") == 0 ?
-                    "None yet" :
-                    data.getJSONObject("MISC").getInt("RATING") + "/5 from " + data.getJSONObject("MISC").getInt("TIMESRATED") + " vote(s)";
+                    I18n.get(channel.getGuild()).getString("noneYet") :
+                    MessageFormat.format(I18n.get(channel.getGuild()).getString("npRatingRange"), data.getJSONObject("MISC").getInt("RATING"), data.getJSONObject("MISC").getInt("TIMESRATED"));
 
             String albumArt = data.getJSONObject("MISC").getString("ALBUMART").equals("") ?
                     "https://gensokyoradio.net/images/albums/c200/gr6_circular.png" :
@@ -181,18 +201,17 @@ public class NowplayingCommand extends Command implements IMusicCommand {
                     data.getJSONObject("MISC").getString("CIRCLELINK");
 
             EmbedBuilder eb = new EmbedBuilder()
-                    .setTitle(data.getJSONObject("SONGINFO").getString("TITLE"))
-                    .setUrl(titleUrl)
-                    .addField("Album", data.getJSONObject("SONGINFO").getString("ALBUM"), true)
-                    .addField("Artist", data.getJSONObject("SONGINFO").getString("ARTIST"), true)
-                    .addField("Circle", data.getJSONObject("SONGINFO").getString("CIRCLE"), true);
+                    .setTitle(data.getJSONObject("SONGINFO").getString("TITLE"), titleUrl)
+                    .addField(I18n.get(channel.getGuild()).getString("album"), data.getJSONObject("SONGINFO").getString("ALBUM"), true)
+                    .addField(I18n.get(channel.getGuild()).getString("artist"), data.getJSONObject("SONGINFO").getString("ARTIST"), true)
+                    .addField(I18n.get(channel.getGuild()).getString("circle"), data.getJSONObject("SONGINFO").getString("CIRCLE"), true);
 
             if(data.getJSONObject("SONGINFO").optInt("YEAR") != 0){
-                eb.addField("Year", Integer.toString(data.getJSONObject("SONGINFO").getInt("YEAR")), true);
+                eb.addField(I18n.get(channel.getGuild()).getString("year"), Integer.toString(data.getJSONObject("SONGINFO").getInt("YEAR")), true);
             }
 
-            eb.addField("Rating", rating, true)
-                    .addField("Listeners", Integer.toString(data.getJSONObject("SERVERINFO").getInt("LISTENERS")), true)
+            eb.addField(I18n.get(channel.getGuild()).getString("rating"), rating, true)
+                    .addField(I18n.get(channel.getGuild()).getString("listeners"), Integer.toString(data.getJSONObject("SERVERINFO").getInt("LISTENERS")), true)
                     .setImage(albumArt)
                     .setColor(new Color(66, 16, 80))
                     .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
@@ -204,36 +223,19 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         }
     }
 
-    private void sendBgmstoreEmbed(TextChannel channel, BgmstoreAudioTrack at) {
-        MessageEmbed embed = new EmbedBuilder()
-                .setAuthor(at.getInfo().author, null, null)
-                .setTitle(at.getInfo().title)
-                .setDescription("["
-                        + TextUtils.formatTime(at.getPosition())
-                        + "/"
-                        + TextUtils.formatTime(at.getDuration())
-                        + "]\n\nhttps://bgmstore.net/view/" + at.getIdentifier())
-                .setColor(new Color(73, 165, 255))
-                .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
-                .build();
-
-        channel.sendMessage(embed).queue();
-    }
-
-    private void sendHttpEmbed(TextChannel channel, HttpAudioTrack at){
+    private void sendHttpEmbed(TextChannel channel, AudioTrackContext atc, HttpAudioTrack at){
         String desc = at.getDuration() == Long.MAX_VALUE ?
                 "[LIVE]" :
                 "["
-                        + TextUtils.formatTime(at.getPosition())
+                        + TextUtils.formatTime(atc.getEffectivePosition())
                         + "/"
-                        + TextUtils.formatTime(at.getDuration())
+                        + TextUtils.formatTime(atc.getEffectiveDuration())
                         + "]";
 
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
-                .setTitle(at.getInfo().title)
-                .setUrl(at.getIdentifier())
-                .setDescription(desc + "\n\n재생링크 " + at.getIdentifier()) //TODO: Probe data
+                .setTitle(atc.getEffectiveTitle(), at.getIdentifier())
+                .setDescription(MessageFormat.format(I18n.get(channel.getGuild()).getString("npLoadedFromHTTP"), desc, at.getIdentifier())) //TODO: Probe data
                 .setColor(BotConstants.FREDBOAT_COLOR)
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();
@@ -241,19 +243,19 @@ public class NowplayingCommand extends Command implements IMusicCommand {
         channel.sendMessage(embed).queue();
     }
 
-    private void sendDefaultEmbed(TextChannel channel, AudioTrack at){
+    private void sendDefaultEmbed(TextChannel channel, AudioTrackContext atc, AudioTrack at){
         String desc = at.getDuration() == Long.MAX_VALUE ?
                 "[LIVE]" :
                 "["
-                        + TextUtils.formatTime(at.getPosition())
+                        + TextUtils.formatTime(atc.getEffectivePosition())
                         + "/"
-                        + TextUtils.formatTime(at.getDuration())
+                        + TextUtils.formatTime(atc.getEffectiveDuration())
                         + "]";
 
         MessageEmbed embed = new EmbedBuilder()
                 .setAuthor(at.getInfo().author, null, null)
-                .setTitle(at.getInfo().title)
-                .setDescription(desc + "\n\n재생링크 " + at.getSourceManager().getSourceName())
+                .setTitle(atc.getEffectiveTitle(), null)
+                .setDescription(MessageFormat.format(I18n.get(channel.getGuild()).getString("npLoadedDefault"), desc, at.getSourceManager().getSourceName()))
                 .setColor(BotConstants.FREDBOAT_COLOR)
                 .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl())
                 .build();

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,11 +29,14 @@ import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
+
+import java.text.MessageFormat;
 
 public class RestartCommand extends Command implements IMusicCommand {
 
@@ -42,10 +45,10 @@ public class RestartCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.getExisting(guild);
 
         if(player != null && !player.isQueueEmpty()){
-            player.getPlayingTrack().getTrack().setPosition(0L);
-            channel.sendMessage("**" + player.getPlayingTrack().getTrack().getInfo().title + "** has been restarted.").queue();
+            player.getPlayingTrack().getTrack().setPosition(player.getPlayingTrack().getStartPosition());
+            channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("restartSuccess"), player.getPlayingTrack().getEffectiveTitle())).queue();
         } else {
-            TextUtils.replyWithName(channel, invoker, "The queue is empty.");
+            TextUtils.replyWithName(channel, invoker, I18n.get(guild).getString("queueEmpty"));
         }
     }
 

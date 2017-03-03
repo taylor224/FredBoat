@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,24 +26,28 @@
 package fredboat.util;
 
 import com.mashape.unirest.http.Unirest;
-import fredboat.FredBoat;
+import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
+import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager;
+import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
+import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import fredboat.Config;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.net.URLEncoder;
-import java.util.ArrayList;
 
 public class YoutubeAPI {
 
     private YoutubeAPI() {
     }
 
-    public static ArrayList<YoutubeVideo> searchForVideos(String query) {
-        JSONObject data = null;
+    public static AudioPlaylist searchForVideos(String query) {
+
+        /*JSONObject data = null;
         try {
             data = Unirest.get("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=5&regionCode=JP&fields=items(id/videoId)")
                     .queryString("q", URLEncoder.encode(query, "UTF-8"))
-                    .queryString("key", FredBoat.getRandomGoogleKey())
+                    .queryString("key", Config.CONFIG.getRandomGoogleKey())
                     .asJson()
                     .getBody()
                     .getObject();
@@ -61,15 +65,17 @@ public class YoutubeAPI {
             throw ex;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
-        }
+        }*/
+
+        return new YoutubeSearchResultHandler().searchSync(query);
     }
 
-    public static YoutubeVideo getVideoFromID(String id) {
+    private static YoutubeVideo getVideoFromID(String id) {
         JSONObject data = null;
         try {
             data = Unirest.get("https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&fields=items(id,snippet/title,contentDetails/duration)")
                     .queryString("id", id)
-                    .queryString("key", FredBoat.getRandomGoogleKey())
+                    .queryString("key", Config.CONFIG.getRandomGoogleKey())
                     .asJson()
                     .getBody()
                     .getObject();
@@ -94,7 +100,7 @@ public class YoutubeAPI {
             try {
                 data = Unirest.get("https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet")
                         .queryString("id", id)
-                        .queryString("key", FredBoat.getRandomGoogleKey())
+                        .queryString("key", Config.CONFIG.getRandomGoogleKey())
                         .asJson()
                         .getBody()
                         .getObject();
@@ -116,6 +122,65 @@ public class YoutubeAPI {
             }
         } else {
             return getVideoFromID(id);
+        }
+    }
+
+    private static class YoutubeSearchResultHandler implements AudioLoadResultHandler {
+
+        Throwable throwable;
+        AudioPlaylist result;
+        final Object toBeNotified = new Object();
+
+        AudioPlaylist searchSync(String query) {
+            DefaultAudioPlayerManager manager = new DefaultAudioPlayerManager();
+            manager.registerSourceManager(new YoutubeAudioSourceManager());
+
+            try {
+                synchronized (toBeNotified) {
+                    manager.loadItem("ytsearch:" + query, this);
+                    toBeNotified.wait(3000);
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Was interrupted while searching", e);
+            }
+
+            if(throwable != null) {
+                throw new RuntimeException("Failed to search!", throwable);
+            }
+
+            return result;
+        }
+
+        @Override
+        public void trackLoaded(AudioTrack audioTrack) {
+            throwable = new UnsupportedOperationException("Can't load a single track when we are expecting a playlist!");
+            synchronized (toBeNotified) {
+                toBeNotified.notify();
+            }
+        }
+
+        @Override
+        public void playlistLoaded(AudioPlaylist audioPlaylist) {
+            result = audioPlaylist;
+            synchronized (toBeNotified) {
+                toBeNotified.notify();
+            }
+
+        }
+
+        @Override
+        public void noMatches() {
+            synchronized (toBeNotified) {
+                toBeNotified.notify();
+            }
+        }
+
+        @Override
+        public void loadFailed(FriendlyException e) {
+            throwable = e;
+            synchronized (toBeNotified) {
+                toBeNotified.notify();
+            }
         }
     }
 

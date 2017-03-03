@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,12 +27,15 @@ package fredboat.command.util;
 
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicBackupCommand;
-import fredboat.util.BotConstants;
+import fredboat.feature.I18n;
+import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
+
+import java.text.MessageFormat;
 
 public class HelpCommand extends Command implements IMusicBackupCommand {
 
@@ -45,8 +48,8 @@ public class HelpCommand extends Command implements IMusicBackupCommand {
                 throw new RuntimeException(e);
             }
         }
-        invoker.getUser().getPrivateChannel().sendMessage(BotConstants.HELP_TEXT).queue();
-        channel.sendMessage(invoker.getEffectiveName() + ": Documentation has been sent to your direct messages!").queue();
+        invoker.getUser().getPrivateChannel().sendMessage(I18n.get(guild).getString("helpDM")).queue();
+        TextUtils.replyWithName(channel, invoker, I18n.get(guild).getString("helpSent"));
     }
     
 }

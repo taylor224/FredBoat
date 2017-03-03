@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,44 +25,17 @@
 
 package fredboat.command.util;
 
-import fredboat.command.fun.TextCommand;
+import fredboat.commandmeta.abs.Command;
+import fredboat.feature.I18n;
+import net.dv8tion.jda.core.entities.Guild;
+import net.dv8tion.jda.core.entities.Member;
+import net.dv8tion.jda.core.entities.Message;
+import net.dv8tion.jda.core.entities.TextChannel;
 
-public class MusicHelpCommand extends TextCommand {
+public class MusicHelpCommand extends Command {
 
-    public static final String MUSIC
-            ="```md\n" +
-            "< 아카리 음악 명령어 >\n" +
-            ";;play <url>\n" +
-            "#해당 url 의 음악을 재생합니다.\n" +
-            ";;list\n" +
-            "#현재 재생 큐를 보여줍니다.\n" +
-            ";;nowplaying / " +
-            ";;np\n" +
-            "#현재 재생중인 곡의 정보를 보여줍니다.\n" +
-            ";;skip / ;;skip [n]\n" +
-            "#현재 재생중인 곡 혹은 해당 리스트 트랙 번호의 곡을 스킵합니다.\n" +
-            ";;stop\n" +
-            "#재생을 멈추고 재생 큐를 초기화 합니다.\n" +
-            ";;pause\n" +
-            "#플레이어를 일시정지 합니다.\n" +
-            ";;unpause\n" +
-            "#플레이어 일시정지를 해제합니다..\n" +
-            ";;join\n" +
-            "#현재 접속된 음성채널로 봇을 초대합니다.\n" +
-            ";;leave\n" +
-            "#현재 음성채널에서 봇을 내보냅니다.\n" +
-            ";;repeat\n" +
-            "#현재 재생 곡을 반복재생 합니다.\n" +
-            ";;shuffle\n" +
-            "#셔플(랜덤) 재생 모드를 활성화 합니다.\n" +
-            ";;volume <vol>\n" +
-            "#볼륨을 조절합니다. 0 ~ 150 사이. 기본 볼륨은 100 입니다.\n" +
-            ";;export\n" +
-            "#현재 재생 큐 목록을 hastebin 으로 출력합니다.\n" +
-            ";;gr\n" +
-            "#gensokyoradio.net 를 위한 특별 embed 를 포스트 합니다.```";
-
-    public MusicHelpCommand() {
-        super(MUSIC);
+    @Override
+    public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
+        channel.sendMessage(I18n.get(guild).getString("musicHelp")).queue();
     }
 }

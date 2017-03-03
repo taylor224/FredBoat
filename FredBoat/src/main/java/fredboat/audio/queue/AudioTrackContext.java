@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,10 +33,10 @@ import java.util.Random;
 
 public class AudioTrackContext implements Comparable<AudioTrackContext> {
 
-    private final AudioTrack track;
+    protected final AudioTrack track;
     private final String userId;
     private final String guildId;
-    private final JDA jda;
+    protected final JDA jda;
     private int rand;
 
     public AudioTrackContext(AudioTrack at, Member member) {
@@ -76,6 +76,26 @@ public class AudioTrackContext implements Comparable<AudioTrackContext> {
         return new AudioTrackContext(track.makeClone(), getMember());
     }
 
+    public long getEffectiveDuration() {
+        return track.getDuration();
+    }
+
+    public long getEffectivePosition() {
+        return track.getPosition();
+    }
+
+    public void setEffectivePosition(long position) {
+        track.setPosition(position);
+    }
+
+    public String getEffectiveTitle() {
+        return track.getInfo().title;
+    }
+
+    public long getStartPosition() {
+        return 0;
+    }
+
     @Override
     public int compareTo(AudioTrackContext atc) {
         if(rand > atc.getRand()) {
@@ -85,5 +105,28 @@ public class AudioTrackContext implements Comparable<AudioTrackContext> {
         } else {
             return 0;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AudioTrackContext)) return false;
+
+        AudioTrackContext that = (AudioTrackContext) o;
+
+        if (getRand() != that.getRand()) return false;
+        if (!getTrack().equals(that.getTrack())) return false;
+        if (!userId.equals(that.userId)) return false;
+        return guildId.equals(that.guildId);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = getTrack().hashCode();
+        result = 31 * result + userId.hashCode();
+        result = 31 * result + guildId.hashCode();
+        result = 31 * result + getRand();
+        return result;
     }
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,9 +29,9 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.remote.RemoteNode;
 import fredboat.audio.AbstractPlayer;
 import fredboat.commandmeta.abs.Command;
-import fredboat.commandmeta.abs.ICommandOwnerRestricted;
-import fredboat.util.BotConstants;
-import net.dv8tion.jda.core.EmbedBuilder;
+import fredboat.util.DiscordUtil;
+import fredboat.util.TextUtils;
+import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
@@ -39,30 +39,47 @@ import net.dv8tion.jda.core.entities.TextChannel;
 
 import java.util.List;
 
-public class NodesCommand extends Command implements ICommandOwnerRestricted {
+public class NodesCommand extends Command {
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
         AudioPlayerManager pm = AbstractPlayer.getPlayerManager();
         List<RemoteNode> nodes = pm.getRemoteNodeRegistry().getNodes();
+        boolean showHost = false;
 
-        int i = 0;
-
-        for(RemoteNode node : nodes){
-            try {
-                EmbedBuilder eb = new EmbedBuilder()
-                        .setTitle("Node " + i)
-                        .addField("Host", node.getAddress(), false)
-                        .addField("State", node.getConnectionState().toString(), false)
-                        .addField("Playing", node.getLastStatistics() == null ? "UNKNOWN" : Integer.toString(node.getLastStatistics().playingTrackCount), false)
-                        .addField("CPU usage", node.getLastStatistics() == null ? "UNKNOWN" : node.getLastStatistics().systemCpuUsage * 100 + "%", false)
-                        .setColor(BotConstants.FREDBOAT_COLOR)
-                        .setFooter(channel.getJDA().getSelfUser().getName(), channel.getJDA().getSelfUser().getAvatarUrl());
-
-                channel.sendMessage(eb.build()).queue();
-
-                i++;
-            } catch (IllegalStateException ignored){}
+        if (args.length == 2 && args[1].equals("host")) {
+            if (DiscordUtil.isUserBotOwner(invoker.getUser())) {
+                showHost = true;
+            } else {
+                TextUtils.replyWithName(channel, invoker, "You do not have permission to view the hosts!");
+            }
         }
+
+        MessageBuilder mb = new MessageBuilder();
+        mb.append("```\n");
+        int i = 0;
+        for (RemoteNode node : nodes) {
+            mb.append("Node " + i + "\n");
+            if (showHost) {
+                mb.append(node.getAddress())
+                        .append("\n");
+            }
+            mb.append("Status: ")
+                    .append(node.getConnectionState().toString())
+                    .append("\nPlaying: ")
+                    .append(node.getLastStatistics() == null ? "UNKNOWN" : node.getLastStatistics().playingTrackCount)
+                    .append("\nCPU: ")
+                    .append(node.getLastStatistics() == null ? "UNKNOWN" : node.getLastStatistics().systemCpuUsage * 100 + "%")
+                    .append("\n");
+
+            mb.append(node.getBalancerPenaltyDetails());
+
+            mb.append("\n\n");
+
+            i++;
+        }
+
+        mb.append("```");
+        channel.sendMessage(mb.build()).queue();
     }
 }

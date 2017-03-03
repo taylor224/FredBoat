@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,9 @@
 
 package fredboat.command.fun;
 
+import fredboat.Config;
 import fredboat.FredBoat;
 import fredboat.commandmeta.abs.Command;
-import fredboat.util.BotConstants;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
@@ -38,7 +38,7 @@ public class TalkCommand extends Command {
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
-        String question = message.getRawContent().substring(BotConstants.DEFAULT_BOT_PREFIX.length() + 5);
+        String question = message.getRawContent().substring(Config.CONFIG.getPrefix().length() + 5);
 
         talk(invoker, channel, question);
     }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,32 +27,64 @@ package fredboat.util;
 
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import fredboat.FredBoat;
+import fredboat.Config;
 import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.JDAInfo;
 import net.dv8tion.jda.core.OnlineStatus;
-import net.dv8tion.jda.core.entities.*;
+import net.dv8tion.jda.core.entities.Guild;
+import net.dv8tion.jda.core.entities.Message;
+import net.dv8tion.jda.core.entities.Role;
+import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import net.dv8tion.jda.core.requests.*;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DiscordUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(DiscordUtil.class);
+
+    private static final String USER_AGENT = "FredBoat DiscordBot (https://github.com/Frederikam/FredBoat, 1.0)";
 
     private DiscordUtil() {
     }
 
     public static boolean isMainBot() {
-        return (FredBoat.getScopes() & 0x100) != 0;
+        return isMainBot(Config.CONFIG);
     }
 
     public static boolean isMusicBot() {
-        return (FredBoat.getScopes() & 0x010) != 0;
+        return isMusicBot(Config.CONFIG);
     }
 
     public static boolean isSelfBot() {
-        return (FredBoat.getScopes() & 0x001) != 0;
+        return isSelfBot(Config.CONFIG);
+    }
+
+    public static boolean isMainBot(Config conf) {
+        return (conf.getScope() & 0x100) != 0;
+    }
+
+    public static boolean isMusicBot(Config conf) {
+        return (conf.getScope() & 0x010) != 0;
+    }
+
+    public static boolean isSelfBot(Config conf) {
+        return (conf.getScope() & 0x001) != 0;
+    }
+
+    public static boolean isUserBotOwner(User user) {
+        return getOwnerId(user.getJDA()).equals(user.getId());
+    }
+
+    public static String getOwnerId(JDA jda) {
+        try {
+            return getApplicationInfo(jda.getToken().substring(4)).getJSONObject("owner").getString("id");
+        } catch (UnirestException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static boolean isMainBotPresent(Guild guild) {
@@ -106,11 +138,38 @@ public class DiscordUtil {
     public static int getRecommendedShardCount(String token) throws UnirestException {
         return Unirest.get(Requester.DISCORD_API_PREFIX + "gateway/bot")
                 .header("Authorization", "Bot " + token)
-                .header("User-agent", "FredBoat DiscordBot (https://github.com/Frederikam/FredBoat, " + JDAInfo.VERSION + ")")
+                .header("User-agent", USER_AGENT)
                 .asJson()
                 .getBody()
                 .getObject()
                 .getInt("shards");
+    }
+
+    public static User getUserFromBearer(JDA jda, String token) {
+        try {
+            JSONObject user =  Unirest.get(Requester.DISCORD_API_PREFIX + "/users/@me")
+                    .header("Authorization", "Bearer " + token)
+                    .header("User-agent", USER_AGENT)
+                    .asJson()
+                    .getBody()
+                    .getObject();
+
+            if(user.has("id")){
+                return jda.retrieveUserById(user.getString("id")).block();
+            }
+        } catch (UnirestException | RateLimitedException ignored) {}
+
+        return null;
+    }
+
+    // https://discordapp.com/developers/docs/topics/oauth2
+    public static JSONObject getApplicationInfo(String token) throws UnirestException {
+        return Unirest.get(Requester.DISCORD_API_PREFIX + "/oauth2/applications/@me")
+                .header("Authorization", "Bot " + token)
+                .header("User-agent", USER_AGENT)
+                .asJson()
+                .getBody()
+                .getObject();
     }
 
 }

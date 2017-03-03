@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,8 +28,11 @@ package fredboat.audio;
 import com.sedmelluq.discord.lavaplayer.tools.io.MessageInput;
 import com.sedmelluq.discord.lavaplayer.tools.io.MessageOutput;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
+import fredboat.Config;
 import fredboat.FredBoat;
 import fredboat.audio.queue.AudioTrackContext;
+import fredboat.audio.queue.SplitAudioTrackContext;
+import fredboat.feature.I18n;
 import fredboat.util.ExitCodes;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.TextChannel;
@@ -40,12 +43,15 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Scanner;
 
 public class MusicPersistenceHandler {
 
@@ -64,22 +70,22 @@ public class MusicPersistenceHandler {
         boolean isUpdate = code == ExitCodes.EXIT_CODE_UPDATE;
         boolean isRestart = code == ExitCodes.EXIT_CODE_RESTART;
 
-        String msg;
-
-        if (isUpdate) {
-            msg = "아카리가 업데이트 중입니다. 몇 분 정도 소요 될 수 있으며, 업데이트가 끝난 뒤 기존 재생 큐가 자동으로 재로딩 됩니다.";
-        } else if (isRestart) {
-            msg = "아카리가 재시작 중입니다. 몇 분 정도 소요 될 수 있으며, 업데이트가 끝난 뒤 기존 재생 큐가 자동으로 재로딩 됩니다.";
-        } else {
-            msg = "아카리가 시스템 종료 중입니다. 나중에 재시작 된 이후 기존 재생 큐가 자동으로 재로딩 됩니다.";
-        }
-
         for (String gId : reg.keySet()) {
             try {
                 GuildPlayer player = reg.get(gId);
 
                 if (!player.isPlaying()) {
                     continue;//Nothing to see here
+                }
+
+                String msg;
+
+                if (isUpdate) {
+                    msg = I18n.get(player.getGuild()).getString("shutdownUpdating");
+                } else if (isRestart) {
+                    msg = I18n.get(player.getGuild()).getString("shutdownRestarting");
+                } else {
+                    msg = I18n.get(player.getGuild()).getString("shutdownIndef");
                 }
 
                 player.getActiveTextChannel().sendMessage(msg).queue();
@@ -93,7 +99,7 @@ public class MusicPersistenceHandler {
                 data.put("shuffle", player.isShuffle());
 
                 if (player.getPlayingTrack() != null) {
-                    data.put("position", player.getPlayingTrack().getTrack().getPosition());
+                    data.put("position", player.getPlayingTrack().getEffectivePosition());
                 }
 
                 ArrayList<JSONObject> identifiers = new ArrayList<>();
@@ -106,6 +112,16 @@ public class MusicPersistenceHandler {
                             .put("message", Base64.encodeBase64String(baos.toByteArray()))
                             .put("user", atc.getMember().getUser().getId());
 
+                    if(atc instanceof SplitAudioTrackContext) {
+                        JSONObject split = new JSONObject();
+                        SplitAudioTrackContext c = (SplitAudioTrackContext) atc;
+                        split.put("title", c.getEffectiveTitle())
+                                .put("startPos", c.getStartPosition())
+                                .put("endPos", c.getStartPosition() + c.getEffectiveDuration());
+
+                        ident.put("split", split);
+                    }
+
                     identifiers.add(ident);
                 }
 
@@ -114,7 +130,7 @@ public class MusicPersistenceHandler {
                 try {
                     FileUtils.writeStringToFile(new File(dir, gId), data.toString(), Charset.forName("UTF-8"));
                 } catch (IOException ex) {
-                    player.getActiveTextChannel().sendMessage("Error occurred when saving persistence file: " + ex.getMessage()).queue();
+                    player.getActiveTextChannel().sendMessage(MessageFormat.format(I18n.get(player.getGuild()).getString("shutdownPersistenceFail"), ex.getMessage())).queue();
                 }
             } catch (Exception ex) {
                 log.error("Error when saving persistence file", ex);
@@ -131,13 +147,9 @@ public class MusicPersistenceHandler {
         log.info("Found persistence data: " + Arrays.toString(dir.listFiles()));
 
         for (File file : dir.listFiles()) {
-            InputStream is = null;
             try {
                 String gId = file.getName();
-                is = new FileInputStream(file);
-                Scanner scanner = new Scanner(is);
-                JSONObject data = new JSONObject(scanner.useDelimiter("\\A").next());
-                scanner.close();
+                JSONObject data = new JSONObject(FileUtils.readFileToString(file, Charset.forName("UTF-8")));
 
                 //TODO: Make shard in-specific
                 boolean isPaused = data.getBoolean("isPaused");
@@ -152,7 +164,7 @@ public class MusicPersistenceHandler {
 
                 player.joinChannel(vc);
                 player.setCurrentTC(tc);
-                if(FredBoat.distribution.volumeSupported()) {
+                if(Config.CONFIG.getDistribution().volumeSupported()) {
                     player.setVolume(volume);
                 }
                 player.setRepeat(repeat);
@@ -175,28 +187,44 @@ public class MusicPersistenceHandler {
 
                     if (at == null) {
                         log.error("Loaded track that was null! Skipping...");
+                        return;
                     }
 
-                    if (isFirst[0]) {
-                        isFirst[0] = false;
-                        if (data.has("position")) {
-                            at.setPosition(data.getLong("position"));
+                    // Handle split tracks
+                    AudioTrackContext atc;
+                    JSONObject split = json.optJSONObject("split");
+                    if(split != null) {
+                        atc = new SplitAudioTrackContext(at, member,
+                                split.getLong("startPos"),
+                                split.getLong("endPos"),
+                                split.getString("title")
+                        );
+                        at.setPosition(split.getLong("startPos"));
+
+                        if (isFirst[0]) {
+                            isFirst[0] = false;
+                            if (data.has("position")) {
+                                at.setPosition(split.getLong("startPos") + data.getLong("position"));
+                            }
+                        }
+                    } else {
+                        atc = new AudioTrackContext(at, member);
+
+                        if (isFirst[0]) {
+                            isFirst[0] = false;
+                            if (data.has("position")) {
+                                at.setPosition(data.getLong("position"));
+                            }
                         }
                     }
 
-                    player.queue(new AudioTrackContext(at, member));
+                    player.queue(atc);
                 });
 
                 player.setPause(isPaused);
-                tc.sendMessage("Reloading playlist. `" + sources.length() + "` tracks found.").queue();
+                tc.sendMessage(MessageFormat.format(I18n.get(player.getGuild()).getString("reloadSuccess"), sources.length())).queue();
             } catch (Exception ex) {
                 log.error("Error when loading persistence file", ex);
-            } finally {
-                try {
-                    is.close();
-                } catch (Exception ex) {
-                    log.error("Error when closing InputStream after error", ex);
-                }
             }
         }
 

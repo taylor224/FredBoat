@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,13 +34,14 @@ import fredboat.audio.queue.AudioTrackContext;
 import fredboat.commandmeta.MessagingException;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 
-import java.util.List;
+import java.text.MessageFormat;import java.util.List;
 
 public class ExportCommand extends Command implements IMusicCommand {
 
@@ -49,7 +50,7 @@ public class ExportCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.get(guild);
         
         if(player.getRemainingTracks().isEmpty()){
-            throw new MessagingException("Nothing to export, the queue is empty.");
+            throw new MessagingException(I18n.get(guild).getString("exportEmpty"));
         }
         
         List<AudioTrackContext> tracks = player.getRemainingTracks();
@@ -66,9 +67,9 @@ public class ExportCommand extends Command implements IMusicCommand {
         
         try {
             String url = TextUtils.postToHastebin(out, true) + ".fredboat";
-            channel.sendMessage("Exported playlist: " + url + "\nYou can provide this URL to play the current playlist later.").queue();
+            channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("exportPlaylistResulted"), url)).queue();
         } catch (UnirestException ex) {
-            throw new MessagingException("Failed to upload playlist to hastebin.com");
+            throw new MessagingException(I18n.get(guild).getString("exportPlaylistFail"));
         }
         
         

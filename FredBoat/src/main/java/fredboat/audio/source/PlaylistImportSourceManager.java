@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ public class PlaylistImportSourceManager implements AudioSourceManager {
 
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(PlaylistImportSourceManager.class);
 
-    private static final Pattern PLAYLIST_PATTERN = Pattern.compile("^https?:\\/\\/hastebin\\.com\\/(?:raw\\/)?(\\w+)(?:\\..+)?$");
+    private static final Pattern PLAYLIST_PATTERN = Pattern.compile("^https?://hastebin\\.com/(?:raw/)?(\\w+)(?:\\..+)?$");
     private static final AudioPlayerManager PRIVATE_MANAGER = AbstractPlayer.registerSourceManagers(new DefaultAudioPlayerManager());
 
     @Override

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,22 +25,22 @@
 
 package fredboat.audio;
 
-import fredboat.util.YoutubeVideo;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.core.entities.Message;
 
-import java.util.ArrayList;
+import java.util.List;
 
 public class VideoSelection {
 
-    public final ArrayList<YoutubeVideo> choices;
-    public final Message outMsg;
+    private final List<AudioTrack> choices;
+    private final Message outMsg;
 
-    public VideoSelection(ArrayList<YoutubeVideo> choices, Message outMsg) {
+    public VideoSelection(List<AudioTrack> choices, Message outMsg) {
         this.choices = choices;
         this.outMsg = outMsg;
     }
 
-    public ArrayList<YoutubeVideo> getChoices() {
+    public List<AudioTrack> getChoices() {
         return choices;
     }
 

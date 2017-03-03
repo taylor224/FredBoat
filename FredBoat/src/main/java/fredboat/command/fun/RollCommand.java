@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 
 package fredboat.command.fun;
 
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
@@ -46,7 +47,7 @@ public class RollCommand extends RandomImageCommand {
                 channel.sendMessage(new MessageBuilder()
                         .append("_")
                         .append(invoker)
-                        .append(" rolls around on the floor._")
+                        .append(I18n.get(guild).getString("rollSuccess"))
                         .build()).queue();
             
         }

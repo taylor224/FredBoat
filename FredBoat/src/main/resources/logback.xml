@@ -1,7 +1,7 @@
 <!--
   ~ MIT License
   ~
-  ~ Copyright (c) 2016 Frederik Ar. Mikkelsen
+  ~ Copyright (c) 2017 Frederik Ar. Mikkelsen
   ~
   ~ Permission is hereby granted, free of charge, to any person obtaining a copy
   ~ of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@
         </encoder>
     </appender>
 
-    <logger name="fredboat" level="DEBUG" additivity="true">
+    <logger name="com" level="DEBUG" additivity="true">
         <appender-ref ref="DEBUG"/>
         <appender-ref ref="ERROR"/>
     </logger>

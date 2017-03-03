@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,42 +27,42 @@ package fredboat.command.music.control;
 
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
+import fredboat.audio.queue.AudioTrackContext;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
-import fredboat.util.BotConstants;
-import net.dv8tion.jda.core.Permission;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
-import net.dv8tion.jda.core.utils.PermissionUtil;
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.text.MessageFormat;
+import java.util.List;
 
 public class StopCommand extends Command implements IMusicCommand {
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
-        if (PermissionUtil.checkPermission(channel, invoker, Permission.MESSAGE_MANAGE) || invoker.getUser().getId().equals(BotConstants.OWNER_ID)) {
-            GuildPlayer player = PlayerRegistry.get(guild);
-            player.setCurrentTC(channel);
-            int count = player.getRemainingTracks().size();
+        GuildPlayer player = PlayerRegistry.get(guild);
+        player.setCurrentTC(channel);
+        List<AudioTrackContext> tracks = player.getRemainingTracks();
 
-            player.clear();
-            player.skip();
+        Pair<Boolean, String> pair = player.skipTracksForMemberPerms(channel, invoker, tracks);
 
-            switch (count) {
+        if(pair.getLeft()) {
+            switch (tracks.size()) {
                 case 0:
-                    channel.sendMessage("재생 큐가 이미 비어있습니다.").queue();
+                    channel.sendMessage(I18n.get(guild).getString("stopAlreadyEmpty")).queue();
                     break;
                 case 1:
-                    channel.sendMessage("재생 큐를 초기화 합니다. `1` 곡이 삭제되었습니다.").queue();
+                    channel.sendMessage(I18n.get(guild).getString("stopEmptyOne")).queue();
                     break;
                 default:
-                    channel.sendMessage("재생 큐를 초기화 합니다. `" + count + "` 곡이 삭제되었습니다.").queue();
+                    channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("stopEmptySeveral"), tracks.size())).queue();
                     break;
             }
             player.leaveVoiceChannelRequest(channel, true);
-        } else {
-            channel.sendMessage("어뷰징 방지를 위해 본 기능은 메세지 관리 권한이 있는 유저만 실행이 가능합니다.").queue();
         }
     }
 

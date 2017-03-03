@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,12 +29,13 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import fredboat.agent.CarbonitexAgent;
 import fredboat.api.API;
+import fredboat.api.OAuthManager;
 import fredboat.audio.MusicPersistenceHandler;
 import fredboat.commandmeta.CommandInitializer;
+import fredboat.db.DatabaseManager;
 import fredboat.event.EventListenerBoat;
 import fredboat.event.EventListenerSelf;
-import fredboat.util.BotConstants;
-import fredboat.util.DiscordUtil;
+import fredboat.feature.I18n;
 import fredboat.util.DistributionEnum;
 import fredboat.util.log.SimpleLogToSLF4JAdapter;
 import frederikam.jca.JCA;
@@ -47,18 +48,19 @@ import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.entities.VoiceChannel;
 import net.dv8tion.jda.core.events.ReadyEvent;
+import net.dv8tion.jda.core.hooks.EventListener;
 import net.dv8tion.jda.core.utils.SimpleLog;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.security.auth.login.LoginException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class FredBoat {
@@ -70,35 +72,28 @@ public abstract class FredBoat {
     private static final ArrayList<FredBoat> shards = new ArrayList<>();
     public static JCA jca;
     public static final long START_TIME = System.currentTimeMillis();
-    public static DistributionEnum distribution = DistributionEnum.DEVELOPMENT;
     public static final int UNKNOWN_SHUTDOWN_CODE = -991023;
     public static int shutdownCode = UNKNOWN_SHUTDOWN_CODE;//Used when specifying the intended code for shutdown hooks
     static EventListenerBoat listenerBot;
     static EventListenerSelf listenerSelf;
-
-    /* Config */
-    private static JSONObject config = null;
-    private static int scopes = 0;
-    public static int numShards = 1;
+    private static AtomicBoolean firstReadyEventReceived = new AtomicBoolean(false);
     private static AtomicInteger numShardsReady = new AtomicInteger(0);
-    public static int APIPort = 1356;
-
-    /* Credentials */
-    private static JSONObject credsjson;
-    static String accountToken;
-    static String clientToken;
-    public static String mashapeKey;
-    public static String MALPassword;
-    private final static List<String> GOOGLE_KEYS = new ArrayList<>();
-    private static String[] lavaplayerNodes = new String[64];
-    private static boolean lavaplayerNodesEnabled = false;
-    private static String carbonKey;
 
     JDA jda;
     private static FredBoatClient fbClient;
 
-    public static void main(String[] args) throws LoginException, IllegalArgumentException, InterruptedException, IOException {
+    public static void main(String[] args) throws LoginException, IllegalArgumentException, InterruptedException, IOException, UnirestException {
         Runtime.getRuntime().addShutdownHook(new Thread(ON_SHUTDOWN));
+
+        log.info("\n\n" +
+                "  ______            _ ____              _   \n" +
+                " |  ____|          | |  _ \\            | |  \n" +
+                " | |__ _ __ ___  __| | |_) | ___   __ _| |_ \n" +
+                " |  __| '__/ _ \\/ _` |  _ < / _ \\ / _` | __|\n" +
+                " | |  | | |  __/ (_| | |_) | (_) | (_| | |_ \n" +
+                " |_|  |_|  \\___|\\__,_|____/ \\___/ \\__,_|\\__|\n\n");
+
+        I18n.start();
 
         //Attach log adapter
         SimpleLog.addListener(new SimpleLogToSLF4JAdapter());
@@ -106,79 +101,38 @@ public abstract class FredBoat {
         //Make JDA not print to console, we have Logback for that
         SimpleLog.LEVEL = SimpleLog.Level.OFF;
 
+        int scope;
         try {
-            scopes = Integer.parseInt(args[0]);
+            scope = Integer.parseInt(args[0]);
         } catch (NumberFormatException | ArrayIndexOutOfBoundsException ignored) {
             log.info("Invalid scope, defaulting to scopes 0x111");
-            scopes = 0x111;
+            scope = 0x111;
         }
 
         log.info("Starting with scopes:"
-                + "\n\tMain: " + ((scopes & 0x100) == 0x100)
-                + "\n\tMusic: " + ((scopes & 0x010) == 0x010)
-                + "\n\tSelf: " + ((scopes & 0x001) == 0x001));
+                + "\n\tMain: " + ((scope & 0x100) == 0x100)
+                + "\n\tMusic: " + ((scope & 0x010) == 0x010)
+                + "\n\tSelf: " + ((scope & 0x001) == 0x001));
 
         log.info("JDA version:\t" + JDAInfo.VERSION);
 
-        //Load credentials and config files
-        InputStream is = new FileInputStream(new File("./credentials.json"));
-        Scanner scanner = new Scanner(is);
-        credsjson = new JSONObject(scanner.useDelimiter("\\A").next());
-        scanner.close();
-
-        is = new FileInputStream(new File("./config.json"));
-        scanner = new Scanner(is);
-        config = new JSONObject(scanner.useDelimiter("\\A").next());
-        scanner.close();
-
-        mashapeKey = credsjson.optString("mashapeKey");
-        clientToken = credsjson.optString("clientToken");
-        MALPassword = credsjson.optString("malPassword");
-        carbonKey = credsjson.optString("carbonKey");
-
-        JSONArray nodesArray = credsjson.optJSONArray("lavaplayerNodes");
-        if(nodesArray != null) {
-            lavaplayerNodesEnabled = true;
-            Iterator<Object> itr = nodesArray.iterator();
-            int i = 0;
-            while(itr.hasNext()) {
-                lavaplayerNodes[i] = (String) itr.next();
-                i++;
-            }
-        }
-
-        //Get API Port
-        APIPort = config.optInt("apiPort");
-
-        JSONArray gkeys = credsjson.optJSONArray("googleServerKeys");
-        if (gkeys != null) {
-            log.info("Using lavaplayer nodes");
-            gkeys.forEach((Object str) -> GOOGLE_KEYS.add((String) str));
-        }
-
-        if (config.optBoolean("patron")) {
-            distribution = DistributionEnum.PATRON;
-        } else //Determine distribution
-        if (config.optBoolean("development")) {
-            distribution = DistributionEnum.DEVELOPMENT;
-        } else {
-            distribution = DiscordUtil.isMainBot() ? DistributionEnum.MAIN : DistributionEnum.MUSIC;
-        }
-        accountToken = credsjson.getJSONObject("token").getString(distribution.getId());
-
-        log.info("Determined distribution: " + distribution);
+        Config.CONFIG = new Config(
+                new File("./credentials.json"),
+                new File("./config.json"),
+                scope
+        );
 
         //Initialise event listeners
-        listenerBot = new EventListenerBoat(scopes & 0x110, distribution == DistributionEnum.DEVELOPMENT ? BotConstants.DEFAULT_BOT_PREFIX_BETA : BotConstants.DEFAULT_BOT_PREFIX);
-        listenerSelf = new EventListenerSelf(scopes & 0x001, distribution == DistributionEnum.DEVELOPMENT ? BotConstants.DEFAULT_SELF_PREFIX_BETA : BotConstants.DEFAULT_SELF_PREFIX);
+        listenerBot = new EventListenerBoat(Config.CONFIG.getScope() & 0x110);
+        listenerSelf = new EventListenerSelf(Config.CONFIG.getScope() & 0x001);
 
         /* Init JDA */
 
-        if ((scopes & 0x110) != 0) {
-            initBotShards();
+        if ((Config.CONFIG.getScope() & 0x110) != 0) {
+            initBotShards(listenerBot);
         }
 
-        if ((scopes & 0x001) != 0) {
+        if ((Config.CONFIG.getScope() & 0x001) != 0) {
             fbClient = new FredBoatClient();
         }
 
@@ -188,39 +142,36 @@ public abstract class FredBoat {
             log.info("Failed to ignite Spark, FredBoat API unavailable", e);
         }
 
+        try {
+            if(!Config.CONFIG.getJdbcUrl().equals("") && !Config.CONFIG.getOauthSecret().equals("")) {
+                DatabaseManager.startup(Config.CONFIG.getJdbcUrl());
+                OAuthManager.start(Config.CONFIG.getBotToken(), Config.CONFIG.getOauthSecret());
+            } else {
+                log.warn("No JDBC URL and/or secret found, skipped database connection and OAuth2 client");
+            }
+        } catch (Exception e) {
+            log.info("Failed to start DatabaseManager and OAuth2 client", e);
+        }
+
         //Initialise JCA
-        String cbUser = credsjson.optString("cbUser");
-        String cbKey = credsjson.optString("cbKey");
-        if(cbUser != null && cbKey != null && !cbUser.equals("") && !cbKey.equals("")) {
+
+        if(!Config.CONFIG.getCbUser().equals("") && !Config.CONFIG.getCbKey().equals("")) {
             log.info("Starting CleverBot");
-            jca = new JCABuilder().setKey(cbKey).setUser(cbUser).buildBlocking();
+            jca = new JCABuilder().setKey(Config.CONFIG.getCbKey()).setUser(Config.CONFIG.getCbUser()).buildBlocking();
         } else {
             log.warn("Credentials not found for cleverbot authentication. Skipping...");
         }
 
-        if (distribution == DistributionEnum.MAIN && carbonKey != null) {
-            CarbonitexAgent carbonitexAgent = new CarbonitexAgent(carbonKey);
+        if (Config.CONFIG.getDistribution() == DistributionEnum.MAIN && Config.CONFIG.getCarbonKey() != null) {
+            CarbonitexAgent carbonitexAgent = new CarbonitexAgent(Config.CONFIG.getCarbonKey());
             carbonitexAgent.setDaemon(true);
             carbonitexAgent.start();
         }
     }
 
-    private static void initBotShards() {
-        if(distribution == DistributionEnum.DEVELOPMENT) {
-            log.info("Development distribution; forcing 2 shards");
-            numShards = 2;
-        } else {
-            try {
-                numShards = DiscordUtil.getRecommendedShardCount(accountToken);
-            } catch (UnirestException e) {
-                throw new RuntimeException("Unable to get recommended shard count!", e);
-            }
-
-            log.info("Discord recommends " + numShards + " shard(s)");
-        }
-
-        for(int i = 0; i < numShards; i++){
-            shards.add(i, new FredBoatBot(i));
+    static void initBotShards(EventListener listener) {
+        for(int i = 0; i < Config.CONFIG.getNumShards(); i++){
+            shards.add(i, new FredBoatBot(i, listener));
             try {
                 Thread.sleep(SHARD_CREATION_SLEEP_INTERVAL);
             } catch (InterruptedException e) {
@@ -228,7 +179,7 @@ public abstract class FredBoat {
             }
         }
 
-        log.info(numShards + " shards have been constructed");
+        log.info(Config.CONFIG.getNumShards() + " shards have been constructed");
 
     }
 
@@ -236,13 +187,19 @@ public abstract class FredBoat {
         int ready = numShardsReady.incrementAndGet();
         log.info("Received ready event for " + FredBoat.getInstance(readyEvent.getJDA()).getShardInfo().getShardString());
 
-        //Commands
-        CommandInitializer.initCommands();
+        if(!firstReadyEventReceived.getAndSet(true)){
+            onInitFirstShard(readyEvent);
+        }
 
-        if(ready == numShards) {
+        if(ready == Config.CONFIG.getNumShards()) {
             log.info("All " + ready + " shards are ready.");
             MusicPersistenceHandler.reloadPlaylists();
         }
+    }
+
+    private static void onInitFirstShard(ReadyEvent readyEvent) {
+        //Commands
+        CommandInitializer.initCommands();
     }
 
     //Shutdown hook
@@ -271,32 +228,12 @@ public abstract class FredBoat {
         System.exit(code);
     }
 
-    public static int getScopes() {
-        return scopes;
-    }
-
-    public static List<String> getGoogleKeys() {
-        return GOOGLE_KEYS;
-    }
-
-    public static String getRandomGoogleKey() {
-        return GOOGLE_KEYS.get((int) Math.floor(Math.random() * GOOGLE_KEYS.size()));
-    }
-
     public static EventListenerBoat getListenerBot() {
         return listenerBot;
     }
 
     public static EventListenerSelf getListenerSelf() {
         return listenerSelf;
-    }
-
-    public static String[] getLavaplayerNodes() {
-        return lavaplayerNodes;
-    }
-
-    public static boolean isLavaplayerNodesEnabled() {
-        return lavaplayerNodesEnabled;
     }
 
     /* Sharding */
@@ -371,13 +308,17 @@ public abstract class FredBoat {
         throw new IllegalStateException("Attempted to get instance for JDA shard that is not indexed");
     }
 
+    public static JDA getFirstJDA(){
+        return shards.get(0).getJda();
+    }
+
     public ShardInfo getShardInfo() {
         int sId = jda.getShardInfo() == null ? 0 : jda.getShardInfo().getShardId();
 
         if(jda.getAccountType() == AccountType.CLIENT) {
             return new ShardInfo(0, 1);
         } else {
-            return new ShardInfo(sId, numShards);
+            return new ShardInfo(sId, Config.CONFIG.getNumShards());
         }
     }
 

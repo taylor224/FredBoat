@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,16 @@
 
 package fredboat.command.music.control;
 
+import fredboat.Config;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.TextChannel;
+import net.dv8tion.jda.core.entities.TextChannel;import java.text.MessageFormat;
 
 public class PauseCommand extends Command implements IMusicCommand {
 
@@ -41,12 +43,12 @@ public class PauseCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.get(guild);
         player.setCurrentTC(channel);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("재생 큐가 비어있습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("playQueueEmpty")).queue();
         } else if (player.isPaused()) {
-            channel.sendMessage("이미 일시정지 된 상태입니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("pauseAlreadyPaused")).queue();
         } else {
             player.pause();
-            channel.sendMessage("플레이어가 일시정지 되었습니다 `;;unpause` 명령어를 통해 다시 재생할수 있습니다.").queue();
+            channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("pauseSuccess"), Config.CONFIG.getPrefix())).queue();
         }
     }
 

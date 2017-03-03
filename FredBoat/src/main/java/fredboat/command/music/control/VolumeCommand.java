@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,18 +25,20 @@
 
 package fredboat.command.music.control;
 
-import fredboat.FredBoat;
+import fredboat.Config;
 import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.MessagingException;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import fredboat.util.RestActionScheduler;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
 import net.dv8tion.jda.core.entities.TextChannel;
 
+import java.text.MessageFormat;
 import java.util.concurrent.TimeUnit;
 
 public class VolumeCommand extends Command implements IMusicCommand {
@@ -44,24 +46,21 @@ public class VolumeCommand extends Command implements IMusicCommand {
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
 
-        if(FredBoat.distribution.volumeSupported()) {
+        if(Config.CONFIG.getDistribution().volumeSupported()) {
 
             GuildPlayer player = PlayerRegistry.get(guild);
             try {
                 float volume = Float.parseFloat(args[1]) / 100;
                 volume = Math.max(0, Math.min(1.5f, volume));
 
-                channel.sendMessage("볼륨을 조절합니다 [**" + (int) Math.floor(player.getVolume() * 100) + "%**] :arrow_right: [**" + (int) Math.floor(volume * 100) + "%**].").queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("volumeSuccess"), Math.floor(player.getVolume() * 100), Math.floor(volume * 100))).queue();
 
                 player.setVolume(volume);
             } catch (NumberFormatException | ArrayIndexOutOfBoundsException ex) {
-                throw new MessagingException("잘못된 명령입니다.\n사용방법 : `;;volume <0-150>`.\n기본 볼륨은 " + (int) (100 * PlayerRegistry.DEFAULT_VOLUME) + "% 입니다.\n현재 볼륨 : **" + (int) Math.floor(player.getVolume() * 100) + "%**.");
+                throw new MessagingException(MessageFormat.format(I18n.get(guild).getString("volumeSyntax"), 100 * PlayerRegistry.DEFAULT_VOLUME, Math.floor(player.getVolume() * 100)));
             }
         } else {
-            channel.sendMessage("Sorry! The ;;volume command has now been deprecated on the public music bot. "
-                    + "This is because of how it causes the bot to spend a lot more time processing audio, some tracks up to 5 times more, causing everyone to hear stutter. "
-                    + "By disabling this feature FredBoat can play much more music without lag.\n"
-                    + "I recommend setting the bot's volume via the dropdown menu https://fred.moe/1vD.png").queue(message1 -> RestActionScheduler.schedule(
+            channel.sendMessage(I18n.get(guild).getString("volumeApology")).queue(message1 -> RestActionScheduler.schedule(
                             message1.deleteMessage(),
                             2,
                             TimeUnit.MINUTES

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ public class IdentifierContext {
     public final TextChannel textChannel;
     public final Member member;
     private boolean quiet = false;
+    private boolean split = false;
     private long position = 0L;
 
     public IdentifierContext(String identifier, TextChannel textChannel, Member member) {
@@ -52,6 +53,14 @@ public class IdentifierContext {
 
     public long getPosition() {
         return position;
+    }
+
+    public boolean isSplit() {
+        return split;
+    }
+
+    public void setSplit(boolean split) {
+        this.split = split;
     }
 
     public void setPosition(long position) {

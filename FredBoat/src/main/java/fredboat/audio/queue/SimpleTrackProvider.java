@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,6 @@
 
 package fredboat.audio.queue;
 
-import javafx.scene.media.AudioTrack;
-
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -70,6 +67,15 @@ public class SimpleTrackProvider extends AbstractTrackProvider {
         }
     }
 
+    public boolean remove(AudioTrackContext atc) {
+        if(queue.remove(atc)){
+            shouldUpdateShuffledQueue = true;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     @Override
     public AudioTrackContext removeAt(int i) {
         if(queue.size() < i){
@@ -91,9 +97,9 @@ public class SimpleTrackProvider extends AbstractTrackProvider {
     }
 
     @Override
-    public List removeRange(int startIndex, int endIndex) {
+    public List<AudioTrackContext> getInRange(int startIndex, int endIndex) {
         if(queue.size() < endIndex){
-            return null;
+            return new ArrayList<>();
         } else {
             int remain = endIndex - startIndex + 1;
             int i = 0;
@@ -101,11 +107,8 @@ public class SimpleTrackProvider extends AbstractTrackProvider {
             for(AudioTrackContext obj : getAsListOrdered()){
                 if(i >= startIndex && remain > 0){
                     shouldUpdateShuffledQueue = true;
-                    //noinspection SuspiciousMethodCalls
-                    queue.remove(obj);
                     atl.add(obj);
                     remain--;
-                    System.out.println(obj.getTrack().getInfo().title);
                 }
                 else if (remain <= 0) {
                     return atl;
@@ -114,7 +117,7 @@ public class SimpleTrackProvider extends AbstractTrackProvider {
             }
         }
 
-        return null;
+        return new ArrayList<>();
     }
 
     @Override
@@ -125,9 +128,7 @@ public class SimpleTrackProvider extends AbstractTrackProvider {
     @Override
     public synchronized List<AudioTrackContext> getAsListOrdered() {
         if(!isShuffle()){
-            List<AudioTrackContext> list = getAsList();
-
-            return list;
+            return getAsList();
         }
 
         if(!shouldUpdateShuffledQueue){

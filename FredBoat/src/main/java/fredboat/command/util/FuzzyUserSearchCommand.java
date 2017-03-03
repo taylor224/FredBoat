@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,9 @@
 
 package fredboat.command.util;
 
+import fredboat.Config;
 import fredboat.commandmeta.abs.Command;
+import fredboat.feature.I18n;
 import fredboat.util.ArgumentUtil;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.entities.Guild;
@@ -40,12 +42,12 @@ public class FuzzyUserSearchCommand extends Command {
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
         if(args.length == 1){
-            TextUtils.replyWithName(channel, invoker, "Proper usage:\n`;;fuzzy <term>`");
+            TextUtils.replyWithName(channel, invoker, I18n.get(guild).getString("fuzzyUsage").replace(Config.DEFAULT_PREFIX, Config.CONFIG.getPrefix()));
         } else {
             List<Member> list = ArgumentUtil.fuzzyMemberSearch(guild, args[1]);
 
             if(list.isEmpty()){
-                TextUtils.replyWithName(channel, invoker, "No such users");
+                TextUtils.replyWithName(channel, invoker, I18n.get(guild).getString("fuzzyNoResults"));
             }
 
             String msg = "```\n";

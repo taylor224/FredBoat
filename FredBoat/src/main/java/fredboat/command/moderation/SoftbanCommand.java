@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,9 @@
 
 package fredboat.command.moderation;
 
+import fredboat.Config;
 import fredboat.commandmeta.abs.Command;
+import fredboat.feature.I18n;
 import fredboat.util.ArgumentUtil;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.Permission;
@@ -34,6 +36,7 @@ import net.dv8tion.jda.core.utils.PermissionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.List;
 
 public class SoftbanCommand extends Command {
@@ -44,7 +47,7 @@ public class SoftbanCommand extends Command {
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
         //Ensure we have a search term
         if(args.length == 1){
-            channel.sendMessage("Proper usage:\n`;;softban <user>`").queue();
+            channel.sendMessage(I18n.get(guild).getString("softbanUsage").replace(Config.DEFAULT_PREFIX, Config.CONFIG.getPrefix())).queue();
             return;
         }
 
@@ -57,48 +60,45 @@ public class SoftbanCommand extends Command {
         target.getGuild().getController().ban(target, 7).queue(
                 aVoid -> {
                     target.getGuild().getController().unban(target.getUser()).queue();
-                    TextUtils.replyWithName(channel, invoker, "User " + target.getUser().getName() + "#" + target.getUser().getDiscriminator()
-                            + " [" + target.getUser().getId() +  "] has been softbanned.");
+                    TextUtils.replyWithName(channel, invoker, MessageFormat.format(I18n.get(guild).getString("softbanSuccess"), target.getUser().getName(), target.getUser().getDiscriminator(), target.getUser().getId()));
                 },
-                throwable -> log.error("Failed to ban " + target.getUser())
+                throwable -> log.error(MessageFormat.format(I18n.get(guild).getString("softbanFail"), target.getUser()))
         );
     }
 
     private boolean checkAuthorization(TextChannel channel, Member mod, Member target) {
         if(mod == target) {
-            TextUtils.replyWithName(channel, mod, "You can't softban yourself.");
+            TextUtils.replyWithName(channel, mod, I18n.get(channel.getGuild()).getString("softbanFailSelf"));
             return false;
         }
 
         if(target.isOwner()) {
-            TextUtils.replyWithName(channel, mod, "You can't softban the server owner.");
+            TextUtils.replyWithName(channel, mod, I18n.get(channel.getGuild()).getString("softbanFailOwner"));
             return false;
         }
 
         if(target == target.getGuild().getSelfMember()) {
-            TextUtils.replyWithName(channel, mod, "I can't softban myself.");
+            TextUtils.replyWithName(channel, mod, I18n.get(channel.getGuild()).getString("softbanFailMyself"));
             return false;
         }
 
         if(!PermissionUtil.checkPermission(mod.getGuild(), mod, Permission.BAN_MEMBERS, Permission.KICK_MEMBERS) && !mod.isOwner()) {
-            TextUtils.replyWithName(channel, mod, "You must have permission to kick and ban to be able to use this command.");
+            TextUtils.replyWithName(channel, mod, I18n.get(channel.getGuild()).getString("softbanFailUserPerms"));
             return false;
         }
 
         if(getHighestRolePosition(mod) <= getHighestRolePosition(target) && !mod.isOwner()) {
-            TextUtils.replyWithName(channel, mod, "You do not have a higher role than " + target.getEffectiveName() + ".");
+            TextUtils.replyWithName(channel, mod, MessageFormat.format(I18n.get(channel.getGuild()).getString("softbanFailUserHierachy"), target.getEffectiveName()));
             return false;
         }
 
         if(!PermissionUtil.checkPermission(mod.getGuild(), mod.getGuild().getSelfMember(), Permission.BAN_MEMBERS)) {
-            TextUtils.replyWithName(channel, mod, "I need to have permission to ban members.");
+            TextUtils.replyWithName(channel, mod, I18n.get(channel.getGuild()).getString("softbanBotPerms"));
             return false;
         }
 
-        log.info(getHighestRolePosition(mod.getGuild().getSelfMember()) + " <=" + getHighestRolePosition(target));
-
         if(getHighestRolePosition(mod.getGuild().getSelfMember()) <= getHighestRolePosition(target)) {
-            TextUtils.replyWithName(channel, mod, "I need to have a higher role than " + target.getEffectiveName() + ".");
+            TextUtils.replyWithName(channel, mod, MessageFormat.format(I18n.get(channel.getGuild()).getString("softbanFailBotHierachy"), target.getEffectiveName()));
             return false;
         }
 

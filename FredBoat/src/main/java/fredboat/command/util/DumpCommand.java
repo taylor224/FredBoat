@@ -27,10 +27,9 @@ package fredboat.command.util;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
 import fredboat.commandmeta.abs.Command;
-import fredboat.util.BotConstants;
+import fredboat.util.DiscordUtil;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.MessageBuilder;
-import net.dv8tion.jda.core.MessageHistory;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.entities.Message.Attachment;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
@@ -44,7 +43,7 @@ import java.util.List;
 
 public class DumpCommand extends Command {
 
-    public static final int MAX_DUMP_SIZE = 2000;
+    private static final int MAX_DUMP_SIZE = 2000;
 
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
@@ -65,7 +64,7 @@ public class DumpCommand extends Command {
         outputChannel.sendTyping().queue();
         
         //Quick hack to allow infinite messages if invoked by owner:
-        if(invoker.getUser().getId().equals(BotConstants.OWNER_ID)){
+        if(invoker.getUser().getId().equals(DiscordUtil.getOwnerId(invoker.getJDA()))){
             realDumpSize = dumpSize;
         }
         
@@ -135,7 +134,7 @@ public class DumpCommand extends Command {
         }
     }
 
-    public String formatTimestamp(OffsetDateTime t) {
+    private String formatTimestamp(OffsetDateTime t) {
         String str;
         if (LocalDateTime.now(Clock.systemUTC()).getDayOfYear() != t.getDayOfYear()) {
             str = "[" + t.getMonth().name().substring(0, 3).toLowerCase() + " " + t.getDayOfMonth() + " " + forceTwoDigits(t.getHour()) + ":" + forceTwoDigits(t.getMinute()) + "]";

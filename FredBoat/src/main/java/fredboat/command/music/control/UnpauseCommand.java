@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@ import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
@@ -41,14 +42,14 @@ public class UnpauseCommand extends Command implements IMusicCommand {
         GuildPlayer player = PlayerRegistry.get(guild);
         player.setCurrentTC(channel);
         if (player.isQueueEmpty()) {
-            channel.sendMessage("재생 큐가 비어있습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("unpauseQueueEmpty")).queue();
         } else if (!player.isPaused()) {
-            channel.sendMessage("플레이어가 일시정지 된 상태가 아닙니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("unpausePlayerNotPaused")).queue();
         } else if (player.getUsersInVC().isEmpty() && player.isPaused()) {
-            channel.sendMessage("현재 음성채널에 접속해 있지 않습니다. 플레이를 위해서는 먼저 음성채널에 접속해야 합니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("unpauseNoUsers")).queue();
         } else {
             player.play();
-            channel.sendMessage("플레이어의 일시정지가 해제되었습니다.").queue();
+            channel.sendMessage(I18n.get(guild).getString("unpauseSuccess")).queue();
         }
     }
 

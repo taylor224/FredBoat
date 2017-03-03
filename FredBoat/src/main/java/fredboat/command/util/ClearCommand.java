@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +27,11 @@ package fredboat.command.util;
 
 import fredboat.commandmeta.MessagingException;
 import fredboat.commandmeta.abs.Command;
-import fredboat.util.BotConstants;
+import fredboat.util.DiscordUtil;
 import fredboat.util.TextUtils;
 import net.dv8tion.jda.core.JDA;
-import net.dv8tion.jda.core.MessageHistory;
 import net.dv8tion.jda.core.Permission;
-import net.dv8tion.jda.core.entities.Guild;
-import net.dv8tion.jda.core.entities.Member;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.TextChannel;
+import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import net.dv8tion.jda.core.utils.PermissionUtil;
 
@@ -44,11 +40,12 @@ import java.util.List;
 
 public class ClearCommand extends Command {
 
+    //TODO: Redo this
     @Override
     public void onInvoke(Guild guild, TextChannel channel, Member invoker, Message message, String[] args) {
         JDA jda = guild.getJDA();
         
-        if(!PermissionUtil.checkPermission(channel, invoker, Permission.MESSAGE_MANAGE) && !invoker.getUser().getId().equals(BotConstants.OWNER_ID)){
+        if(!PermissionUtil.checkPermission(channel, invoker, Permission.MESSAGE_MANAGE) && !DiscordUtil.isUserBotOwner(invoker.getUser())){
             TextUtils.replyWithName(channel, invoker, " You must have Manage Messages to do that!");
             return;
         }

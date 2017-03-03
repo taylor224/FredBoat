@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,13 +25,11 @@
 
 package fredboat.command.fun;
 
-import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.async.Callback;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import fredboat.commandmeta.abs.Command;
+import fredboat.feature.I18n;
 import fredboat.util.CacheUtil;
-import net.dv8tion.jda.core.MessageBuilder;
 import net.dv8tion.jda.core.entities.Guild;
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
@@ -39,6 +37,7 @@ import net.dv8tion.jda.core.entities.TextChannel;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,14 +54,14 @@ public class CatgirlCommand extends Command {
             Matcher m = IMAGE_PATTERN.matcher(str);
 
             if(!m.find()){
-                channel.sendMessage("Failed to extract image from " + BASE_URL).queue();
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("catgirlFail"), BASE_URL)).queue();
                 return;
             }
 
             File tmp = CacheUtil.getImageFromURL(BASE_URL + m.group(1));
             channel.sendFile(tmp, null).queue();
         } catch (UnirestException e) {
-            channel.sendMessage("Failed to connect to " + BASE_URL).queue();
+            channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("catgirlFailConn"), BASE_URL)).queue();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

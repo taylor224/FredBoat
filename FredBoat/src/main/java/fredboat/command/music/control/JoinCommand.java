@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,10 @@ import fredboat.audio.GuildPlayer;
 import fredboat.audio.PlayerRegistry;
 import fredboat.commandmeta.abs.Command;
 import fredboat.commandmeta.abs.IMusicCommand;
+import fredboat.feature.I18n;
 import net.dv8tion.jda.core.entities.*;
+
+import java.text.MessageFormat;
 
 public class JoinCommand extends Command implements IMusicCommand {
 
@@ -41,12 +44,12 @@ public class JoinCommand extends Command implements IMusicCommand {
         try {
             player.joinChannel(vc);
             if (vc != null) {
-                channel.sendMessage("" + vc.getName() + " 채널에 접속합니다.")
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("joinJoining"), vc.getName()))
                         .queue();
             }
         } catch (IllegalStateException ex) {
             if(vc != null) {
-                channel.sendMessage("이미 " + vc.getName() + " 채널에 접속하고 있습니다. 잠시 후 다시 시도해주세요.")
+                channel.sendMessage(MessageFormat.format(I18n.get(guild).getString("joinErrorAlreadyJoining"), vc.getName()))
                         .queue();
             } else {
                 throw ex;

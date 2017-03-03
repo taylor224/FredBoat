@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,19 +27,33 @@ package fredboat.audio.queue;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.source.http.HttpAudioTrack;
+import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioTrack;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import fredboat.audio.GuildPlayer;
+import fredboat.feature.I18n;
 import fredboat.util.TextUtils;
+import fredboat.util.YoutubeAPI;
+import fredboat.util.YoutubeVideo;
+import net.dv8tion.jda.core.MessageBuilder;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AudioLoader implements AudioLoadResultHandler {
 
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(AudioLoader.class);
+
+    //Matches a timestamp and the description
+    private static final Pattern SPLIT_DESCRIPTION_PATTERN = Pattern.compile("(.*?)[( \\[]*((?:\\d?\\d:)?\\d?\\d:\\d\\d)[) \\]]*(.*)");
+    private static final int QUEUE_TRACK_LIMIT = 10000;
 
     private final ITrackProvider trackProvider;
     private final AudioPlayerManager playerManager;
@@ -67,6 +81,13 @@ public class AudioLoader implements AudioLoadResultHandler {
             if (ic != null) {
                 isLoading = true;
                 context = ic;
+
+                if (gplayer.getRemainingTracks().size() >= QUEUE_TRACK_LIMIT) {
+                    TextUtils.replyWithName(gplayer.getActiveTextChannel(), context.member, "You can't add tracks to a queue with more than " + QUEUE_TRACK_LIMIT + " tracks! This is to prevent abuse.");
+                    isLoading = false;
+                    return;
+                }
+
                 playerManager.loadItem(ic.identifier, this);
             } else {
                 isLoading = false;
@@ -80,19 +101,27 @@ public class AudioLoader implements AudioLoadResultHandler {
     @Override
     public void trackLoaded(AudioTrack at) {
         try {
-            if (!context.isQuiet()) {
-                context.textChannel.sendMessage(
-                        gplayer.isPlaying() ? "**" + at.getInfo().title + "** 가 재생 큐에 추가되었습니다." : "**" + at.getInfo().title + "** 가 재생됩니다."
-                ).queue();
+            if(context.isSplit()){
+                loadSplit(at, context);
             } else {
-                log.info("Quietly loaded " + at.getIdentifier());
-            }
 
-            at.setPosition(context.getPosition());
+                if (!context.isQuiet()) {
+                    context.textChannel.sendMessage(
+                            gplayer.isPlaying() ?
+                                    MessageFormat.format(I18n.get(context.member.getGuild()).getString("loadSingleTrack"), at.getInfo().title)
+                                    :
+                                    MessageFormat.format(I18n.get(context.member.getGuild()).getString("loadSingleTrackAndPlay"), at.getInfo().title)
+                    ).queue();
+                } else {
+                    log.info("Quietly loaded " + at.getIdentifier());
+                }
 
-            trackProvider.add(new AudioTrackContext(at, context.member));
-            if (!gplayer.isPaused()) {
-                gplayer.play();
+                at.setPosition(context.getPosition());
+
+                trackProvider.add(new AudioTrackContext(at, context.member));
+                if (!gplayer.isPaused()) {
+                    gplayer.play();
+                }
             }
         } catch (Throwable th) {
             handleThrowable(context, th);
@@ -103,8 +132,14 @@ public class AudioLoader implements AudioLoadResultHandler {
     @Override
     public void playlistLoaded(AudioPlaylist ap) {
         try {
+            if(context.isSplit()){
+                TextUtils.replyWithName(context.textChannel, context.member, I18n.get(context.textChannel.getGuild()).getString("loadPlaySplitListFail"));
+                loadNextAsync();
+                return;
+            }
+
             context.textChannel.sendMessage(
-                    "총 `" + ap.getTracks().size() + "` 개의 곡이 있는 플레이리스트가 추가됩니다. **" + ap.getName() + "**."
+                    MessageFormat.format(I18n.get(context.textChannel.getGuild()).getString("loadListSuccess"), ap.getTracks().size(), ap.getName())
             ).queue();
 
             for (AudioTrack at : ap.getTracks()) {
@@ -122,7 +157,7 @@ public class AudioLoader implements AudioLoadResultHandler {
     @Override
     public void noMatches() {
         try {
-            context.textChannel.sendMessage("`" + context.identifier + "` 의 오디오를 찾을수 없습니다.").queue();
+            context.textChannel.sendMessage(MessageFormat.format(I18n.get(context.textChannel.getGuild()).getString("loadNoMatches"), context.identifier)).queue();
         } catch (Throwable th) {
             handleThrowable(context, th);
         }
@@ -136,6 +171,92 @@ public class AudioLoader implements AudioLoadResultHandler {
         loadNextAsync();
     }
 
+    private void loadSplit(AudioTrack at, IdentifierContext ic){
+        if(!(at instanceof YoutubeAudioTrack)){
+            ic.textChannel.sendMessage(I18n.get(ic.textChannel.getGuild()).getString("loadSplitNotYouTube")).queue();
+            return;
+        }
+        YoutubeAudioTrack yat = (YoutubeAudioTrack) at;
+
+        YoutubeVideo yv = YoutubeAPI.getVideoFromID(yat.getIdentifier(), true);
+        String desc = yv.getDescription();
+        Matcher m = SPLIT_DESCRIPTION_PATTERN.matcher(desc);
+
+        ArrayList<Pair<Long, String>> pairs = new ArrayList<>();
+
+        while(m.find()) {
+            long timestamp;
+            try {
+                timestamp = TextUtils.parseTimeString(m.group(2));
+            } catch (NumberFormatException e) {
+                continue;
+            }
+
+            String title1 = m.group(1);
+            String title2 = m.group(3);
+
+            if(title1.length() > title2.length()) {
+                pairs.add(new ImmutablePair<>(timestamp, title1));
+            } else {
+                pairs.add(new ImmutablePair<>(timestamp, title2));
+            }
+
+
+        }
+
+        if(pairs.size() < 2) {
+            ic.textChannel.sendMessage(I18n.get(ic.textChannel.getGuild()).getString("loadSplitNotResolves")).queue();
+            return;
+        }
+
+        ArrayList<SplitAudioTrackContext> list = new ArrayList<>();
+
+        int i = 0;
+        for(Pair<Long, String> pair : pairs){
+            long startPos;
+            long endPos;
+
+            if(i != pairs.size() - 1){
+                // Not last
+                startPos = pair.getLeft();
+                endPos = pairs.get(i + 1).getLeft();
+            } else {
+                // Last
+                startPos = pair.getLeft();
+                endPos = at.getDuration();
+            }
+
+            AudioTrack newAt = at.makeClone();
+            newAt.setPosition(startPos);
+
+            SplitAudioTrackContext atc = new SplitAudioTrackContext(newAt, ic.member, startPos, endPos, pair.getRight());
+
+            list.add(atc);
+            gplayer.queue(atc);
+
+            i++;
+        }
+
+        MessageBuilder mb = new MessageBuilder()
+                .append(I18n.get(ic.textChannel.getGuild()).getString("loadFollowingTracksAdded") + "\n");
+        for(SplitAudioTrackContext atc : list) {
+            mb.append("`[")
+                    .append(TextUtils.formatTime(atc.getEffectiveDuration()))
+                    .append("]` ")
+                    .append(atc.getEffectiveTitle())
+                    .append("\n");
+        }
+
+        //This is pretty spammy .. let's use a shorter one
+        if(mb.length() > 800){
+            mb = new MessageBuilder()
+                    .append(MessageFormat.format(I18n.get(ic.textChannel.getGuild()).getString("loadPlaylistTooMany"), list.size()));
+        }
+
+        context.textChannel.sendMessage(mb.build()).queue();
+
+    }
+
     @SuppressWarnings("ThrowableResultIgnored")
     private void handleThrowable(IdentifierContext ic, Throwable th) {
         try {
@@ -143,20 +264,19 @@ public class AudioLoader implements AudioLoadResultHandler {
                 FriendlyException fe = (FriendlyException) th;
                 if (fe.severity == FriendlyException.Severity.COMMON) {
                     if (ic.textChannel != null) {
-                        context.textChannel.sendMessage("`" + context.identifier + "` 을 로딩하는 중에 오류가 발생하였습니다.:\n"
-                        + fe.getMessage()).queue();
+                        context.textChannel.sendMessage(MessageFormat.format(I18n.get(ic.textChannel.getGuild()).getString("loadErrorCommon"), context.identifier, fe.getMessage())).queue();
                     } else {
                         log.error("Error while loading track ", th);
                     }
                 } else if (ic.textChannel != null) {
-                    context.textChannel.sendMessage("`" + context.identifier + "` 의 정보를 불러오는 중에 에러가 난 것 같습니다.").queue();
+                    context.textChannel.sendMessage(MessageFormat.format(I18n.get(ic.textChannel.getGuild()).getString("loadErrorSusp"), context.identifier)).queue();
                     Throwable exposed = fe.getCause() == null ? fe : fe.getCause();
                     TextUtils.handleException(exposed, context.textChannel);
                 } else {
                     log.error("Error while loading track ", th);
                 }
             } else if (ic.textChannel != null) {
-                context.textChannel.sendMessage("`" + context.identifier + "` 의 정보를 불러오는 중에 에러가 난 것 같습니다.").queue();
+                context.textChannel.sendMessage(I18n.get(ic.textChannel.getGuild()).getString("loadErrorSusp")).queue();
                 TextUtils.handleException(th, context.textChannel);
             } else {
                 log.error("Error while loading track ", th);

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2016 Frederik Ar. Mikkelsen
+ * Copyright (c) 2017 Frederik Ar. Mikkelsen
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ public class FredBoatClient extends FredBoat {
                 try {
                     jda = new JDABuilder(AccountType.CLIENT)
                             .addListener(listenerSelf)
-                            .setToken(clientToken)
+                            .setToken(null)//todo: remove
                             .setEnableShutdownHook(false)
                             .buildAsync();
 
